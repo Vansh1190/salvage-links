@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Salvage — rescue the links you already saved</title>
+    <meta name="description" content="A daily deck of your own forgotten saved links. Import bookmarks.html, triage 5 cards a day, watch the pile shrink. Local-first: nothing you save leaves this browser." />
+    <meta name="theme-color" content="#0e1116" />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <meta property="og:title" content="Salvage — rescue the links you already saved" />
+    <meta property="og:description" content="A daily deck of your own forgotten links. Runs entirely in your browser." />
+    <meta property="og:type" content="website" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <div id="app"></div>
+    <p id="sw-note" class="offline-note" hidden>Offline mode is unavailable in this browser, so Salvage needs a connection to load the page itself. Your saved links still work once it is open.</p>
+    <noscript>
+      <p class="offline-note">Salvage is entirely local and needs JavaScript: without it there is nothing to run and nothing to send. If you would rather not enable JS here, the export in your bookmark manager is a plain file and stays yours.</p>
+    </noscript>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
