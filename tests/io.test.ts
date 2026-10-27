@@ -35,9 +35,9 @@ export function makeLink(over: Partial<SalvageLink> = {}): SalvageLink {
 }
 
 describe("canonicalUrl", () => {
-  it("adds a scheme, drops www, the hash and trailing slash", () => {
+  it("adds a scheme, drops www and the trailing slash, but keeps the fragment", () => {
     expect(canonicalUrl("WWW.Example.com/a/b/")).toBe("https://example.com/a/b");
-    expect(canonicalUrl("example.com#a")).toBe("https://example.com/");
+    expect(canonicalUrl("example.com#a")).toBe("https://example.com/#a");
   });
   it("strips tracking params but keeps meaningful ones", () => {
     expect(canonicalUrl("https://example.com/p?id=7&utm_source=news&fbclid=x")).toBe("https://example.com/p?id=7");
@@ -61,6 +61,16 @@ describe("dedupeKey / domain helpers", () => {
   });
   it("treats www and bare host as the same key", () => {
     expect(dedupeKey(canonicalUrl("https://www.github.com/a"))).toBe(dedupeKey(canonicalUrl("https://github.com/a")));
+  });
+  it("keeps links apart when only the fragment, timestamp or ref differs", () => {
+    const diff = (a: string, b: string) => expect(dedupeKey(canonicalUrl(a))).not.toBe(dedupeKey(canonicalUrl(b)));
+    diff("https://example.com/pr/files#diff-abc", "https://example.com/pr/files#diff-def");
+    diff("https://youtu.be/x?t=42s", "https://youtu.be/x?t=90s");
+    diff("https://docs.example/guide?ref=sidebar", "https://docs.example/guide?ref=google");
+    diff("https://news.ycombinator.com/item?id=1", "https://news.ycombinator.com/item?id=2");
+  });
+  it("still collapses pure tracking noise", () => {
+    expect(dedupeKey(canonicalUrl("https://ex.com/p?utm_source=a&utm_medium=b"))).toBe(dedupeKey(canonicalUrl("https://ex.com/p")));
   });
   it("normalizes titles by dropping site suffixes", () => {
     expect(normalizeTitle("  Merge   policy — GitHub  ")).toContain("merge policy");

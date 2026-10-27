@@ -1,4 +1,11 @@
 const TRAILING_SLASH_HOSTS = new Set(["", "index.php"]);
+/**
+ * Only unambiguous analytics parameters are removed. Fragments are KEPT: for GitHub
+ * PR diffs, Google Maps and most single-page apps the fragment is the address, and
+ * `?t=` is the timestamp of a YouTube link. Merging two different links is data loss;
+ * showing a near-duplicate is not.
+ */
+const TRACKING_PARAMS = /^(utm_|mc_|fbclid|gclid|igshid|spm|_hsenc|_hsmi|vero_id|nc|cmpid)/i;
 
 export function canonicalUrl(raw: string): string {
   const trimmed = raw.trim().replace(/^<|>$/g, "");
@@ -12,14 +19,11 @@ export function canonicalUrl(raw: string): string {
     return trimmed;
   }
   if (u.protocol === "javascript:" || u.protocol === "data:" || u.protocol === "blob:") return trimmed;
-  u.hash = "";
   u.hostname = u.hostname.toLowerCase().replace(/^www\./, "");
   u.protocol = u.protocol.toLowerCase();
-  if (u.pathname === "/" ) u.pathname = "/";
+  if (u.pathname === "/") u.pathname = "/";
   else u.pathname = u.pathname.replace(/\/{2,}/g, "/").replace(/\/$/, "") || "/";
-  for (const k of [...u.searchParams.keys()]) {
-    if (/^(utm_|mc_|fbclid|gclid|ref|ref_src|igshid|spm|si$|t$)/.test(k)) u.searchParams.delete(k);
-  }
+  for (const k of [...u.searchParams.keys()]) if (TRACKING_PARAMS.test(k)) u.searchParams.delete(k);
   if (u.port === "443" && u.protocol === "https:") u.port = "";
   if (u.port === "80" && u.protocol === "http:") u.port = "";
   if (TRAILING_SLASH_HOSTS.has(u.pathname.slice(1))) return u.toString();
@@ -44,7 +48,8 @@ export function dedupeKey(canonical: string): string {
   const path = u.pathname === "" ? "/" : u.pathname;
   const q = [...u.searchParams.entries()].sort(([a], [b]) => a.localeCompare(b));
   const qs = q.length ? "?" + q.map(([k, v]) => `${k}=${v}`).join("&") : "";
-  return `${u.protocol}//${u.hostname}${u.port ? ":" + u.port : ""}${path}${qs}`.toLowerCase();
+  const hash = u.hash;
+  return `${u.protocol}//${u.hostname}${u.port ? ":" + u.port : ""}${path}${qs}${hash}`.toLowerCase();
 }
 
 export function titleFromUrl(canonical: string): string {

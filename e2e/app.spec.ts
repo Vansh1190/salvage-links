@@ -18,13 +18,15 @@ async function goRoute(page: Page, route: string) {
   await expect(page).toHaveURL(new RegExp(`#/${route}$`));
 }
 
-async function loadDemo(page: Page) {
+async function loadDemo(page: Page): Promise<number> {
   await goRoute(page, "import");
   await page.getByTestId("demo-load").click();
   await expect(page.getByTestId("import-status")).toContainText(/added/, { timeout: 20_000 });
   const status = (await page.getByTestId("import-status").textContent()) ?? "";
   return Number(/(\d+) added/.exec(status)?.[1] ?? 0);
 }
+
+const deckTotal = async (page: Page) => Number(/of (\d+)/.exec((await page.getByTestId("deck-pos").textContent()) ?? "")?.[1] ?? 0);
 
 test("first visit is honest: empty state, no silent errors, real link to import", async ({ page, baseURL }) => {
   const errors = watchErrors(page);
@@ -37,8 +39,8 @@ test("first visit is honest: empty state, no silent errors, real link to import"
   await expect.poll(() => errors.join("\n"), { timeout: 4_000 }).toBe("");
   const manifest = await page.request.get(new URL("manifest.webmanifest", baseURL!).href);
   expect(manifest.ok()).toBeTruthy();
-  const styles = await page.evaluate(() => getComputedStyle(document.querySelector(".brand a")!).color);
-  expect(styles).not.toBe("rgba(0, 0, 0, 0)");
+  const painted = await page.evaluate(() => getComputedStyle(document.querySelector(".deck, .empty")!).backgroundColor);
+  expect(painted).not.toBe("rgba(0, 0, 0, 0)");
 });
 
 test("import → deck → triage → reload → export, end to end", async ({ page, baseURL }) => {
@@ -51,34 +53,37 @@ test("import → deck → triage → reload → export, end to end", async ({ pa
   await goRoute(page, "deck");
   const card = page.getByTestId("deck-card");
   await expect(card).toBeVisible();
-  const firstTitle = await card.locator(".deck-title").textContent();
-  expect((firstTitle ?? "").trim().length).toBeGreaterThan(3);
+  const firstTitle = (await card.locator(".deck-title").textContent()) ?? "";
+  expect(firstTitle.trim().length).toBeGreaterThan(3);
   await expect(card.locator(".why")).toContainText("Why now");
   expect(await card.locator(".deck-url").getAttribute("href")).toMatch(/^https?:\/\//);
-  const total = Number(/of (\d+)/.exec((await page.getByTestId("deck-pos").textContent()) ?? "")?.[1] ?? 0);
-  expect(total).toBeGreaterThanOrEqual(5);
+  const total = await deckTotal(page);
+  expect(total).toBe(5);
 
-  for (const key of ["k", "k", "x", "s", "k"]) {
+  for (const key of ["k", "x", "s", "k"]) {
     await page.keyboard.press(key);
-    await page.waitForTimeout(150);
+    await page.waitForTimeout(220);
   }
-  await expect(page.getByTestId("deck-pos")).toHaveText(`6 of ${total}`);
+  await expect(page.getByTestId("deck-pos")).toHaveText(`${total} of ${total}`);
+  await expect(page.getByTestId("action-feedback")).toContainText(/you can undo/);
+  await expect(page.locator(".progress-text")).toContainText("1 tossed");
+  await expect(page.locator(".progress-text")).toContainText("1d streak");
 
   await page.reload();
   await expect(page.getByTestId("deck-card")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId("deck-pos")).toHaveText(`6 of ${total}`);
+  await expect(page.getByTestId("deck-pos")).toHaveText(`${total} of ${total}`);
+  await expect(page.locator(".progress-text")).toContainText("1 tossed");
 
   await goRoute(page, "queue");
-  await expect(page.getByTestId("queue-count")).toBeVisible();
-  expect(await page.locator(".link-row").count()).toBeGreaterThan(0);
+  await expect(page.getByTestId("queue-count")).toContainText(/2 waiting/);
   const before = await page.locator(".link-row").count();
+  expect(before).toBeGreaterThan(0);
   await page.locator(".link-row").first().getByRole("button", { name: "Read" }).click();
-  await page.waitForTimeout(600);
-  expect(await page.locator(".link-row").count()).toBeLessThan(before);
+  await expect.poll(() => page.locator(".link-row").count(), { timeout: 8_000 }).toBeLessThan(before);
 
   await goRoute(page, "pulse");
   await expect(page.getByTestId("pulse-title")).toBeVisible();
-  expect(Number((await page.locator(".stats dd").first().textContent())?.replace(/,/g, ""))).toBe(added);
+  expect(Number((await page.locator(".stats dd").first().textContent())?.replace(/,/g, ""))).toBe(added - 3);
 
   await goRoute(page, "settings");
   await expect(page.getByText(/Pro trial — \d+ of 40 days left/)).toBeVisible();
@@ -86,26 +91,26 @@ test("import → deck → triage → reload → export, end to end", async ({ pa
   const json = JSON.parse(await readFile(await download.path(), "utf8"));
   expect(json.app).toBe("salvage");
   expect(json.links).toHaveLength(added);
-  const tossed = json.links.filter((l: { status: string }) => l.status === "tossed");
-  expect(tossed.length).toBeGreaterThan(0);
+  expect(json.links.filter((l: { status: string }) => l.status === "tossed").length).toBe(1);
+  expect(json.links.filter((l: { snoozedUntil: number | null }) => l.snoozedUntil).length).toBe(1);
   expect(errors).toEqual([]);
 });
 
-test("keyboard-only triage, undo, and focus stays on the deck", async ({ page, baseURL }) => {
+test("keyboard-only triage, visible undo, and focus stays with the card", async ({ page, baseURL }) => {
   const errors = watchErrors(page);
   await page.goto(baseURL!);
   await loadDemo(page);
   await goRoute(page, "deck");
   await expect(page.getByTestId("deck-card")).toBeVisible();
   await expect(page.getByTestId("deck-pos")).toHaveText(/1 of \d+/);
-  await expect
-    .poll(() => page.evaluate(() => document.activeElement?.getAttribute("data-action")))
-    .toBe("open");
+  await expect.poll(() => page.evaluate(() => document.activeElement?.className ?? "")).toContain("deck-title");
+  const firstTitle = await page.locator(".deck-title").textContent();
   await page.keyboard.press("x");
   await expect(page.getByTestId("deck-pos")).toHaveText(/2 of \d+/);
   await page.keyboard.press("u");
   await expect(page.getByTestId("deck-pos")).toHaveText(/1 of \d+/);
-  await expect(page.locator(".link-row", { hasText: "Toss it" })).toHaveCount(0);
+  await expect(page.locator(".deck-title")).toHaveText(firstTitle ?? "");
+  await expect(page.getByTestId("action-feedback")).toContainText(/^Undid:/);
   await page.keyboard.press("4");
   await expect(page.getByTestId("pulse-title")).toBeVisible();
   await page.keyboard.press("Escape");
@@ -132,16 +137,15 @@ test("search ranks local matches, reports empty honestly, and the app survives g
   await expect(box).toBeFocused();
 
   await page.waitForTimeout(3_000);
-  const controlledBefore = await page.evaluate(() => navigator.serviceWorker.controller !== null);
-  expect(controlledBefore).toBe(true);
+  expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
   await context.setOffline(true);
   await page.reload({ waitUntil: "domcontentloaded" });
-  const servedByWorker = await page.evaluate(() => {
-    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-    return { controller: navigator.serviceWorker.controller !== null, transferSize: nav?.transferSize ?? -1 };
+  const served = await page.evaluate(() => {
+    const n = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    return { controller: navigator.serviceWorker.controller !== null, transferSize: n?.transferSize ?? -1 };
   });
-  expect(servedByWorker.controller).toBe(true);
-  expect(servedByWorker.transferSize).toBe(0);
+  expect(served.controller).toBe(true);
+  expect(served.transferSize).toBe(0);
   await expect(nav(page, "library")).toBeVisible({ timeout: 20_000 });
   await goRoute(page, "pulse");
   await expect(page.getByTestId("pulse-title")).toBeVisible();
@@ -192,13 +196,90 @@ test("folder rename and duplicate cleanup are reachable and pro-gated honestly",
   const input = page.getByLabel(/New name for folder/i).first();
   await expect(input).toBeVisible();
   const oldName = await input.inputValue();
+  expect(oldName.length).toBeGreaterThan(0);
   await input.fill("Triaged pile");
   await page.getByRole("button", { name: "Rename" }).first().click();
-  await expect(page.locator(".link-row").first()).toBeVisible();
+  await expect(page.getByTestId("folder-list")).toContainText("Triaged pile", { timeout: 10_000 });
+  await expect(page.getByTestId("folder-list")).not.toContainText(oldName, { timeout: 10_000 });
   await goRoute(page, "import");
-  await expect(page.getByTestId("import-status")).toContainText(/added/);
   const dupCard = page.locator(".card").filter({ has: page.getByRole("heading", { name: "Duplicates" }) });
   await expect(dupCard).toBeVisible();
-  expect(oldName.length).toBeGreaterThan(0);
+  await expect(dupCard).toContainText(/duplicate|Pro tool|URL/);
+  expect(errors).toEqual([]);
+});
+
+test("the 40-day clock really changes what the deck may deal", async ({ page, baseURL }) => {
+  const errors = watchErrors(page);
+  await page.goto(baseURL!);
+  await loadDemo(page);
+  await goRoute(page, "settings");
+  await page.getByLabel("Cards per day").fill("12");
+  await page.getByTestId("save-deck").click();
+  await expect(page.getByTestId("settings-feedback")).toContainText(/12 cards a day/);
+  await goRoute(page, "deck");
+  await expect(page.getByTestId("deck-pos")).toHaveText(/1 of 12/);
+
+  // Rewind the trial clock in the database, exactly as day 41 would find it.
+  await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const r = indexedDB.open("salvage", 2);
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const t = database.transaction("meta", "readwrite");
+      const store = t.objectStore("meta");
+      const g = store.get("settings");
+      g.onsuccess = () => {
+        const row = g.result as { key: string; value: Record<string, unknown> };
+        row.value = { ...row.value, firstRunAt: Date.now() - 45 * 86_400_000 };
+        store.put(row);
+      };
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+    });
+    const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+      const t = database.transaction("decks", "readonly");
+      const r = t.objectStore("decks").getAllKeys();
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const t = database.transaction("decks", "readwrite");
+      for (const k of keys) t.objectStore("decks").delete(k);
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+    });
+    database.close();
+  });
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText(/Trial ended · free plan/)).toBeVisible({ timeout: 15_000 });
+  await goRoute(page, "deck");
+  await expect(page.getByTestId("deck-pos")).toHaveText(/1 of 5/);
+  await goRoute(page, "settings");
+  await expect(page.getByText(/soft trial/i)).toBeVisible();
+  await expect(page.getByText(/clearing site data resets the clock/i)).toBeVisible();
+  await expect(page.getByText(/deck size choice/)).toBeVisible();
+  await expect(page.getByText(/· unlimited library/)).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("a restored export re-joins the same library instead of doubling it", async ({ page, baseURL }) => {
+  const errors = watchErrors(page);
+  await page.goto(baseURL!);
+  const added = await loadDemo(page);
+  await goRoute(page, "deck");
+  await page.locator("[data-action=toss]").first().click();
+  await page.waitForTimeout(400);
+  await goRoute(page, "settings");
+  const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-json").click()]);
+  const file = await dl.path();
+  await goRoute(page, "import");
+  await page.setInputFiles("#file", file);
+  await expect(page.getByTestId("import-status")).toContainText(/0 added/, { timeout: 15_000 });
+  await expect(page.getByTestId("import-status")).toContainText(new RegExp(`${added} already had`));
+  await goRoute(page, "pulse");
+  expect(Number((await page.locator(".stats dd").first().textContent())?.replace(/,/g, ""))).toBe(added - 1);
   expect(errors).toEqual([]);
 });

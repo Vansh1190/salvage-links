@@ -21,6 +21,7 @@ export interface SalvageLink {
 }
 
 export interface SalvageEvent {
+  id: string;
   ts: number;
   type:
     | "import"
@@ -51,7 +52,6 @@ export interface Settings {
   trialLengthDays: number;
   deckSize: number;
   snoozeDays: number;
-  proClaim: string;
   lastSeenDate: string | null;
   streakDays: number;
   libraryId: string;
@@ -62,7 +62,6 @@ export const DEFAULT_SETTINGS: Settings = {
   trialLengthDays: 40,
   deckSize: 5,
   snoozeDays: 7,
-  proClaim: "",
   lastSeenDate: null,
   streakDays: 0,
   libraryId: "default",

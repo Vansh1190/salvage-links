@@ -2,7 +2,7 @@ import { DEFAULT_SETTINGS, type Settings } from "./model.ts";
 
 export const FREE_LINK_LIMIT = 300;
 export const FREE_DECK_SIZE = 5;
-export const PRO_DECK_SIZE = 10;
+export const PRO_DECK_SIZE = 20;
 export const DEFAULT_TRIAL_DAYS = 40;
 export const DAY_MS = 86_400_000;
 
@@ -16,19 +16,17 @@ export type Capability =
   | "dedupe"
   | "bulk-cleanup"
   | "notes"
-  | "pulse-history"
+  | "deck-size-choice"
   | "export-csv"
-  | "multi-file-merge"
   | "ics-reminder";
 
 export const PRO_CAPABILITIES: Capability[] = [
   "unlimited-library",
+  "deck-size-choice",
   "dedupe",
   "bulk-cleanup",
   "notes",
-  "pulse-history",
   "export-csv",
-  "multi-file-merge",
   "ics-reminder",
 ];
 
@@ -70,7 +68,7 @@ export function getEntitlement(settings: Settings, now: number): Entitlement {
       hoursLeft: null,
       linkLimit: null,
       deckSize: PRO_DECK_SIZE,
-      reason: "Trial has not started yet — it starts the moment you import your first link.",
+      reason: "The trial has not started yet — it starts the moment you import your first link.",
     };
   }
   const ends = start + days * DAY_MS;
@@ -97,8 +95,17 @@ export function getEntitlement(settings: Settings, now: number): Entitlement {
     hoursLeft: 0,
     linkLimit: FREE_LINK_LIMIT,
     deckSize: FREE_DECK_SIZE,
-    reason: `Trial ended. Browse, search, deck and every export stay free; Pro tools are locked. Links beyond the first ${FREE_LINK_LIMIT} are kept on disk and released again if you subscribe.`,
+    reason: `Trial ended. The daily deck, search, browsing your whole library and every export stay free. What locks is the Pro toolset, and new links past the first  stop importing — nothing you already saved is trimmed, hidden or deleted.`,
   };
+}
+
+/**
+ * Single source of truth for "how many cards may I deal?". The free plan is capped at
+ * FREE_DECK_SIZE no matter what settings say; Pro may choose up to PRO_DECK_SIZE.
+ */
+export function allowedDeckFor(e: Entitlement, wanted: number): number {
+  const w = Number.isFinite(wanted) ? Math.min(PRO_DECK_SIZE, Math.max(1, Math.round(wanted))) : 1;
+  return e.proActive ? w : Math.min(FREE_DECK_SIZE, w);
 }
 
 export function ensureTrialStarted(settings: Settings, now: number): { settings: Settings; started: boolean } {
@@ -106,12 +113,6 @@ export function ensureTrialStarted(settings: Settings, now: number): { settings:
   return { settings: { ...settings, firstRunAt: now }, started: true };
 }
 
-export function verifyLicenceSignature(_claim: string): { ok: boolean; detail: string } {
-  return {
-    ok: false,
-    detail: "No licence verification ships in v1 — the site is static and there is no payment flow yet. This function is where a signed licence check would live.",
-  };
-}
 
 export function trialProgress(settings: Settings, now: number): number {
   if (!settings.firstRunAt) return 0;

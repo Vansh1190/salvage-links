@@ -142,7 +142,7 @@ describe("trial / entitlement", () => {
     expect(e.plan).toBe("pro-trial");
     expect(e.daysLeft).toBe(20);
     expect(e.proActive).toBe(true);
-    expect(e.deckSize).toBe(10);
+    expect(e.deckSize).toBe(20);
   });
   it("expires exactly at day 40 and applies the free limits", () => {
     const s = { ...base, firstRunAt: NOW - 40 * DAY };

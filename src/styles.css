@@ -2,9 +2,9 @@
   --bg: #0e1116;
   --bg-elev: #151b23;
   --bg-elev-2: #1b2230;
-  --line: #2a3340;
+  --line: #3d4a5c;
   --text: #e9eef5;
-  --muted: #9fb0c3;
+  --muted: #a9b8c9;
   --accent: #7ee787;
   --accent-ink: #06130a;
   --warn: #ffd166;
@@ -20,7 +20,7 @@
     --bg: #f6f8fa;
     --bg-elev: #ffffff;
     --bg-elev-2: #eef2f6;
-    --line: #d6dee7;
+    --line: #8c9bad;
     --text: #101820;
     --muted: #4d5f73;
     --accent: #1a7f37;
@@ -618,6 +618,28 @@ input[type="search"] {
   padding: 10px 14px;
   color: var(--warn);
   font-size: 0.86rem;
+}
+
+@media (max-width: 560px) {
+  nav {
+    flex-wrap: nowrap;
+    scroll-snap-type: x proximity;
+    padding-bottom: 2px;
+  }
+  nav a {
+    scroll-snap-align: start;
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+  nav kbd {
+    display: none;
+  }
+  .btn-tiny {
+    min-height: 36px;
+  }
+  .link-actions .note {
+    flex-basis: 100%;
+  }
 }
 
 @media (max-width: 480px) {

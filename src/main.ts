@@ -1,7 +1,7 @@
 import "./styles.css";
-import { render } from "./views.ts";
-import { boot, setRoute, state, subscribe, triage, undo, currentCard } from "./state.ts";
+import { boot, announceForDeck, currentCard, setRoute, state, stepDeck, subscribe, triage, undo } from "./state.ts";
 import { announce } from "./dom.ts";
+import { render } from "./views.ts";
 import type { Route } from "./state.ts";
 
 const ROUTES: Route[] = ["deck", "queue", "library", "pulse", "import", "settings", "limits"];
@@ -11,8 +11,9 @@ function routeFromHash(): Route {
   return (ROUTES as string[]).includes(raw) ? (raw as Route) : "deck";
 }
 
-function syncHash(): void {
-  const want = `#/${state.route}`;
+function go(route: Route): void {
+  setRoute(route);
+  const want = `#/${route}`;
   if (location.hash !== want) location.replace(want);
 }
 
@@ -26,44 +27,39 @@ function isTypingTarget(t: EventTarget | null): boolean {
 document.addEventListener("keydown", (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === "Escape" && state.route !== "deck") {
-    setRoute("deck");
-    syncHash();
+    go("deck");
     return;
   }
   if (e.key === "/" && !isTypingTarget(e.target)) {
     e.preventDefault();
-    if (state.route !== "library") setRoute("library");
-    syncHash();
+    if (state.route !== "library") go("library");
     window.setTimeout(() => document.querySelector<HTMLInputElement>("#search-box")?.focus(), 0);
     return;
   }
   if (isTypingTarget(e.target)) return;
   const k = e.key.toLowerCase();
   const digit = ROUTES[Number(k) - 1];
-  if (digit && state.route !== digit) {
-    setRoute(digit);
-    syncHash();
+  if (digit) {
+    go(digit);
     return;
   }
-  if (state.route !== "deck" || !currentCard()) return;
+  if (state.route !== "deck") return;
   const map: Record<string, "open" | "keep" | "snooze" | "toss"> = { o: "open", k: "keep", s: "snooze", x: "toss" };
   if (map[k]) {
+    if (!currentCard()) return;
     e.preventDefault();
-    void triage(map[k]).then(() => {
-      const next = currentCard();
-      announce(next ? `Card ${state.deckIndex + 1}: ${next.title}` : "Deck cleared for today");
-    });
+    void triage(map[k]).then(() => announce(announceForDeck()));
     return;
   }
   if (k === "u") {
     e.preventDefault();
     void undo().then(announce);
-  } else if (k === "arrowright") {
-    state.deckIndex = Math.min((state.deck?.linkIds.length ?? 1) - 1, state.deckIndex + 1);
-    render(document.querySelector("#app") as HTMLElement);
-  } else if (k === "arrowleft") {
-    state.deckIndex = Math.max(0, state.deckIndex - 1);
-    render(document.querySelector("#app") as HTMLElement);
+    return;
+  }
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    e.preventDefault();
+    stepDeck(e.key === "ArrowRight" ? 1 : -1);
+    announce(announceForDeck());
   }
 });
 
@@ -78,14 +74,19 @@ function registerServiceWorker(): void {
   window.setTimeout(() => {
     navigator.serviceWorker
       .register(url)
-      .then(() => {
-        navigator.serviceWorker.addEventListener("controllerchange", () => announce("Saved copy ready — this app now works offline"));
+      .then((reg) => {
+        reg.addEventListener("updatefound", () => {
+          const sw = reg.installing;
+          sw?.addEventListener("statechange", () => {
+            if (sw.state === "activated") announce("Offline copy updated.");
+          });
+        });
       })
       .catch(() => {
         const note = document.querySelector<HTMLElement>("#sw-note");
         if (note) note.hidden = false;
       });
-  }, 1500);
+  }, 1200);
 }
 
 function bootApp(): void {
@@ -95,7 +96,6 @@ function bootApp(): void {
   subscribe(() => render(app));
   render(app);
   void boot();
-  syncHash();
   registerServiceWorker();
 }
 
