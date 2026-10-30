@@ -56,7 +56,11 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-/** Round-trips through parseBookmarksHtml(): covered by tests. */
+/**
+ * Round-trips url, title, folder, save date and notes through parseBookmarksHtml().
+ * It cannot carry triage state (pile/queued/done/tossed) — that is what the JSON export
+ * is for — so the UI labels this one "links only".
+ */
 export function toBookmarksHtml(links: SalvageLink[], now: number): string {
   const byFolder = new Map<string, SalvageLink[]>();
   for (const l of links) {
@@ -79,9 +83,10 @@ export function toBookmarksHtml(links: SalvageLink[], now: number): string {
     for (const l of items.sort((a, b) => (a.addDate ?? 0) - (b.addDate ?? 0))) {
       const add = Math.round((l.addDate ?? l.importedAt) / 1000);
       const tags = l.tags.length ? ` TAGS="${esc(l.tags.join(","))}"` : "";
-      const note = l.note ? ` DESCRIPTION="${esc(l.note)}"` : "";
-      out.push(`        <DT><A HREF="${esc(l.url)}" ADD_DATE="${add}" LAST_visit="${l.openCount}"${tags}${note}>${esc(l.title)}</A>`);
+      out.push(`        <DT><A HREF="${esc(l.url)}" ADD_DATE="${add}"${tags}>${esc(l.title)}</A>`);
+      if (l.note) out.push(`        <DD>${esc(l.note)}</DD>`);
     }
+
     out.push("    </DL><p>");
   }
   out.push("</DL><p>");

@@ -78,7 +78,7 @@ export interface ScoredLink {
   components: Record<string, number>;
 }
 
-export function scoreLink(link: SalvageLink, ctx: ReturnType<typeof affinityMaps>, now: number, windowMs: number): ScoredLink {
+export function scoreLink(link: SalvageLink, ctx: ReturnType<typeof affinityMaps>, now: number): ScoredLink {
   const components: Record<string, number> = {};
   const reasons: string[] = [];
 
@@ -131,7 +131,6 @@ export function scoreLink(link: SalvageLink, ctx: ReturnType<typeof affinityMaps
   const sum = Object.entries(components)
     .filter(([k]) => k !== "snooze")
     .reduce((acc, [, v]) => acc + v, 0);
-  void windowMs;
   return { score: sum, reasons, components };
 }
 
@@ -149,7 +148,7 @@ export function buildDeck(input: DeckInput): DeckPick[] {
 
   const rand = mulberry32(hashString(`${dateKey}|${input.libraryId ?? "default"}|${candidates.length}`));
   const scored = candidates.map((l) => {
-    const { score, reasons, components } = scoreLink(l, ctx, now, windowMs);
+    const { score, reasons, components } = scoreLink(l, ctx, now);
     const jitter = (rand() - 0.5) * 2 * WEIGHTS.jitter;
     return { link: l, score: score + jitter, reasons, components: { ...components, jitter } };
   });
@@ -166,7 +165,7 @@ export function buildDeck(input: DeckInput): DeckPick[] {
     .filter((l) => l.openCount === 0 && l.addDate !== null)
     .sort((a, b) => (a.addDate ?? 0) - (b.addDate ?? 0))[0];
   if (oldest && picks.length >= deckSize && !picks.some((p) => p.linkId === oldest.id)) {
-    const scoredOldest = scoreLink(oldest, ctx, now, windowMs);
+    const scoredOldest = scoreLink(oldest, ctx, now);
     picks[picks.length - 1] = {
       linkId: oldest.id,
       score: Math.round(scoredOldest.score * 1000) / 1000,

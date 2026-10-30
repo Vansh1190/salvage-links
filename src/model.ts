@@ -27,14 +27,12 @@ export interface SalvageEvent {
     | "import"
     | "open"
     | "keep"
-    | "unkeep"
     | "snooze"
     | "toss"
     | "undo"
     | "queue-done"
     | "deck-shown"
     | "trial-start"
-    | "trial-lock"
     | "export";
   linkId?: string;
   count?: number;

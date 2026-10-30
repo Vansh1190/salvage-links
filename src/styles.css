@@ -2,7 +2,7 @@
   --bg: #0e1116;
   --bg-elev: #151b23;
   --bg-elev-2: #1b2230;
-  --line: #3d4a5c;
+  --line: #46526a;
   --text: #e9eef5;
   --muted: #a9b8c9;
   --accent: #7ee787;
@@ -162,6 +162,21 @@ nav {
   overflow-x: auto;
   scrollbar-width: thin;
 }
+@media (max-width: 620px) {
+  nav {
+    flex-wrap: nowrap;
+    margin-inline: calc(var(--gap) * -1);
+    padding-inline: var(--gap);
+    scroll-snap-type: x proximity;
+  }
+  nav a {
+    scroll-snap-align: start;
+    flex: 0 0 auto;
+  }
+  nav kbd {
+    display: none;
+  }
+}
 
 nav a {
   display: inline-flex;
@@ -236,6 +251,12 @@ main {
   flex-direction: column;
   gap: var(--gap);
 }
+@media (min-width: 900px) and (min-height: 700px) {
+  main {
+    justify-content: center;
+    padding-block: 2vh 6vh;
+  }
+}
 main:focus {
   outline: none;
 }
@@ -306,14 +327,26 @@ main:focus {
   border-color: color-mix(in srgb, var(--warn) 60%, var(--line));
   color: var(--warn);
 }
+.chip-tossed::before {
+  content: "✕ ";
+}
 .chip-tossed {
   color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--line));
+}
+.chip-queued::before {
+  content: "▸ ";
 }
 .chip-queued {
   color: var(--focus);
+  border-color: color-mix(in srgb, var(--focus) 55%, var(--line));
+}
+.chip-done::before {
+  content: "✓ ";
 }
 .chip-done {
   color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
 }
 
 .deck-title {

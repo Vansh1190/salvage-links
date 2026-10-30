@@ -1,15 +1,24 @@
 /**
  * Builds public/sample-bookmarks.html — the demo library.
- * URLs: extracted from research/*.md, i.e. URLs a research agent actually opened.
- * Folder names and save dates are synthetic (documented in the file header) so the
- * deck has an age spread to work with. Run: node scripts/make-sample.mjs
+ *
+ * Source of URLs: research/sample-live.json, produced by `npm run curate`
+ * (scripts/curate-sample.mjs), which keeps only URLs that answered HTTP 200 and records
+ * the date. Folder names and save dates are synthetic and clearly labelled as such in the
+ * generated file header, so the deck has an age spread to work with.
+ *
+ * Offline and deterministic: this script only reads files in the repo.
  */
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const files = readdirSync(join(root, "research")).filter((f) => f.endsWith(".md"));
+const livePath = join(root, "research", "sample-live.json");
+if (!existsSync(livePath)) {
+  console.error("research/sample-live.json is missing. Run `npm run curate` (needs network) once, then rebuild.");
+  process.exit(1);
+}
+const curated = JSON.parse(readFileSync(livePath, "utf8"));
 
 function hash(s) {
   let h = 0x811c9dc5;
@@ -17,79 +26,73 @@ function hash(s) {
   return h >>> 0;
 }
 
-const urls = new Map();
-for (const f of files) {
-  const text = readFileSync(join(root, "research", f), "utf8");
-  for (const m of text.matchAll(/https?:\/\/[^\s<>()`"']+/g)) {
-    let u = m[0].replace(/[.,);:]+$/, "");
-    if (/\.(md|png|jpg|svg|zip|log|txt)$/.test(u)) continue;
-    if (u.startsWith("https://api.github.com") || u.includes("registry.npmjs.org")) continue;
-    if (/<|>/.test(u)) continue;
-    if (!urls.has(u)) urls.set(u, { url: u, from: f });
-  }
-}
-
-const list = [...urls.values()].sort((a, b) => hash(a.url) - hash(b.url));
-
-function host(u) {
-  try {
-    return new URL(u).hostname.replace(/^www\./, "");
-  } catch {
-    return "misc";
-  }
-}
-
 const BUCKETS = [
-  ["Read later / Backlog", ["news.ycombinator.com", "hn.algolia.com", "lobste.rs", "dev.to", "overreacted.com", "joelonsoftware.com"]],
-  ["Docs & specs", ["developer.mozilla.org", "mdn.io", "docs.github.com", "web.dev", "webkit.org", "chrome.com", "w3.org"]],
+  ["Read later / Backlog", ["news.ycombinator.com", "lobste.rs", "dev.to", "overreacted.com", "joelonsoftware.com", "css-tricks.com", "smashingmagazine.com", "maurycyz.com", "brennenputh.com", "codeandcake.com"]],
+  ["Docs & specs", ["developer.mozilla.org", "docs.github.com", "web.dev", "webkit.org", "chromium.org", "w3.org", "gh.io"]],
   ["Repos", ["github.com"]],
-  ["Surveys & research", ["survey.stackoverflow.co", "stateofjs.com", "stateofcss.com", "stackoverflow.com", "stackexchange.com", "superuser.com"]],
+  ["Surveys & research", ["survey.stackoverflow.co", "stateofjs.com", "stateofcss.com", "stackoverflow.com", "stackexchange.com", "superuser.com", "serverfault.com", "unix.stackexchange.com", "money.stackexchange.com", "android.stackexchange.com", "academia.stackexchange.com"]],
   ["Reading pile", []],
 ];
 
-function bucketFor(u) {
-  const h = host(u);
-  for (const [name, hosts] of BUCKETS) {
-    if (hosts.some((x) => h === x || h.endsWith("." + x) || h.endsWith(x))) return name;
-  }
+function bucketFor(host) {
+  for (const [name, hosts] of BUCKETS) if (hosts.some((x) => host === x || host.endsWith("." + x))) return name;
   return "Reading pile";
 }
 
-const now = Date.UTC(2026, 9, 27);
-const DAY = 86400000;
+function prettyTitle(u, host) {
+  try {
+    const url = new URL(u);
+    const parts = url.pathname.split("/").map(decodeURIComponent).filter(Boolean);
+    let readable = parts.length ? parts.slice(0, 3).join(" ") : url.hostname;
+    if (readable.length > 60) readable = readable.slice(0, 57) + "…";
+    return (host.replace(/^www\./, "") + " — " + readable).replace(/\s+/g, " ").slice(0, 92);
+  } catch {
+    return host;
+  }
+}
+
+const NOW = Date.UTC(2026, 9, 27);
+const DAY = 86_400_000;
+const seen = new Set();
 const byBucket = new Map();
-let i = 0;
-for (const item of list) {
-  const b = bucketFor(item.url);
-  if (!byBucket.has(b)) byBucket.set(b, []);
-  const seed = hash(item.url + i++);
-  const ageDays = 20 + (seed % 2200);
-  byBucket.get(b).push({ ...item, addDate: Math.round((now - ageDays * DAY) / 1000), seed });
+for (const item of curated.urls) {
+  if (seen.has(item.url)) continue;
+  seen.add(item.url);
+  const bucket = bucketFor(item.host);
+  const seed = hash(item.url);
+  const ageDays = 14 + (seed % 2300);
+  if (!byBucket.has(bucket)) byBucket.set(bucket, []);
+  byBucket.get(bucket).push({ ...item, title: prettyTitle(item.url, item.host), addDate: Math.round((NOW - ageDays * DAY) / 1000) });
 }
 
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const out = [
   "<!DOCTYPE NETSCAPE-Bookmark-file-1>",
-  "<!-- DEMO LIBRARY, generated by scripts/make-sample.mjs",
-  "     URLs: real, extracted from research/*.md (each was opened by a research agent).",
-  "     Folders and ADD_DATEs: synthetic, assigned by hash so the deck has an age spread.",
-  "     Nothing here came from a real person's browser. -->",
+  `<!-- Salvage demo library — generated by scripts/make-sample.mjs from research/sample-live.json
+     URLs: real public pages that answered HTTP 200 on ${curated.checkedAt}, checked by scripts/curate-sample.mjs
+     Folders and ADD_DATEs: synthetic, assigned by hash so the deck has an age spread to work with
+     No real person's browser was used to build this file -->`,
   '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
   "<TITLE>Bookmarks</TITLE>",
   "<H1>Bookmarks (Salvage demo library)</H1>",
   "<DL><p>",
 ];
 for (const [name, items] of byBucket) {
-  out.push(`    <DT><H3>${esc(name)}</H3>`);
-  out.push("    <DL><p>");
+  out.push(`    <DT><H3>${esc(name)}</H3>`, "    <DL><p>");
   for (const it of items.sort((a, b) => a.addDate - b.addDate)) {
-    const title = `${host(it.url)} — ${it.url.split("/").filter(Boolean).slice(-1)[0]?.slice(0, 40) || "home"}`;
-    out.push(`        <DT><A HREF="${esc(it.url)}" ADD_DATE="${it.addDate}">${esc(title)}</A>`);
+    out.push(`        <DT><A HREF="${esc(it.url)}" ADD_DATE="${it.addDate}">${esc(it.title)}</A>`);
   }
   out.push("    </DL><p>");
 }
 out.push("</DL><p>");
 writeFileSync(join(root, "public", "sample-bookmarks.html"), out.join("\n") + "\n");
 const total = [...byBucket.values()].reduce((a, b) => a + b.length, 0);
-console.log(`wrote public/sample-bookmarks.html: ${total} links in ${byBucket.size} folders`);
+
+// The demo card in Settings quotes this file's size and check date. Emitting them keeps
+// that sentence true whenever the sample is re-curated.
+writeFileSync(
+  join(root, "src", "sample-meta.ts"),
+  "// Generated by scripts/make-sample.mjs - do not edit.\nexport const SAMPLE_META = { links: " + total + ", checkedOn: " + JSON.stringify(curated.checkedAt) + " } as const;\n",
+);
+console.log(`wrote public/sample-bookmarks.html: ${total} live-verified links in ${byBucket.size} folders (checked ${curated.checkedAt})`);
 for (const [name, items] of byBucket) console.log(`  ${name}: ${items.length}`);

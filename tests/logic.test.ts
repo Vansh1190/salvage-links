@@ -167,10 +167,10 @@ describe("trial / entitlement", () => {
     expect(second.started).toBe(false);
     expect(second.settings.firstRunAt).toBe(NOW);
   });
-  it("reports trial progress between 0 and 1", () => {
-    expect(trialProgress(base, NOW)).toBe(0);
-    expect(trialProgress({ ...base, firstRunAt: NOW - 20 * DAY }, NOW)).toBeCloseTo(0.5);
-    expect(trialProgress({ ...base, firstRunAt: NOW - 900 * DAY }, NOW)).toBe(1);
+  it("names the free link cap as a number in the sentence users are shown", () => {
+    const reason = getEntitlement({ ...base, firstRunAt: NOW - 60 * DAY }, NOW).reason;
+    expect(reason).toContain(String(FREE_LINK_LIMIT));
+    expect(reason).not.toMatch(/ {2}/);
   });
 });
 
@@ -195,11 +195,10 @@ describe("pulse + streak", () => {
     expect(p.neverOpenedPile).toBe(2);
     expect(p.progressPct).toBe(40);
     expect(p.oldestSaved).toBe(NOW - 1000 * DAY);
-    expect(p.duplicateGroups).toBe(1);
     expect(p.topDomains[0].count).toBe(2);
-    expect(p.byFolder).toHaveLength(1);
+    expect(p.folders).toEqual([{ folder: "Backlog", count: 5 }]);
   });
-  it("separates salvages this week from all time", () => {
+  it("counts only the last week's decisions", () => {
     const events = [
       { ts: NOW - 2 * DAY, type: "keep" as const, linkId: "a" },
       { ts: NOW - 20 * DAY, type: "toss" as const, linkId: "b" },
@@ -208,7 +207,6 @@ describe("pulse + streak", () => {
       { ts: NOW - 5 * DAY, type: "import" as const, count: 10 },
     ];
     const p = computePulse(links, events, NOW, 0);
-    expect(p.salvagedTotal).toBe(3);
     expect(p.salvaged7d).toBe(2);
   });
   it("builds a streak over consecutive days and drops it after a gap", () => {

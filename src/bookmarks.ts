@@ -1,6 +1,4 @@
-import { canonicalUrl, dedupeKey, domainOf, isHttpish, titleFromUrl } from "./normalize.ts";
 import type { SalvageLink } from "./model.ts";
-import { hashId } from "./hash.ts";
 
 export interface ParsedBookmark {
   url: string;
@@ -8,6 +6,8 @@ export interface ParsedBookmark {
   folder: string;
   addDate: number | null;
   tags: string[];
+  /** From a `<DD>` line following the anchor, as Salvage's own export writes them. */
+  note: string;
 }
 
 const ENTITIES: Record<string, string> = {
@@ -52,11 +52,10 @@ function attr(tag: string, name: string): string | null {
 export function parseBookmarksHtml(text: string): ParsedBookmark[] {
   const out: ParsedBookmark[] = [];
   const stack: string[] = [];
-  const tokens = /(<H3\b[^>]*>[\s\S]*?<\/H3>)|(<A\b[^>]*>[\s\S]*?<\/A>)|(<DL\b)|(<\/DL>)/gi;
+  const tokens = /(<H3\b[^>]*>[\s\S]*?<\/H3>)|(<A\b[^>]*>[\s\S]*?<\/A>)|(<DD\b[^>]*>[\s\S]*?)(?=<DT|<\/DL|<DD|$)|(<DL\b)|(<\/DL>)/gi;
   const stripped = text.replace(/<!--[\s\S]*?(?:-->|$)/g, "");
   for (const match of stripped.matchAll(tokens)) {
-    const [token, h3, anchor, dlOpen, dlClose] = match;
-    void token;
+    const [, h3, anchor, dd, dlOpen, dlClose] = match;
     if (h3 !== undefined) {
       const name = decodeEntities(h3.replace(/<[^>]*>/g, "")).trim();
       stack.push(name || "Untitled folder");
@@ -67,6 +66,11 @@ export function parseBookmarksHtml(text: string): ParsedBookmark[] {
       continue;
     }
     if (dlOpen !== undefined) continue;
+    if (dd !== undefined) {
+      const last = out[out.length - 1];
+      if (last && !last.note) last.note = decodeEntities(dd.replace(/^<DD\b[^>]*>/i, "").replace(/<[^>]*>/g, "")).trim();
+      continue;
+    }
     if (anchor !== undefined) {
       const openTag = anchor.slice(0, anchor.indexOf(">") + 1);
       const href = attr(openTag, "HREF");
@@ -80,6 +84,7 @@ export function parseBookmarksHtml(text: string): ParsedBookmark[] {
         folder: stack.filter(Boolean).join(" / ") || "Bookmarks",
         addDate: parseAddDate(attr(openTag, "ADD_DATE")),
         tags: tagsAttr ? tagsAttr.split(/[,\s]+/).filter(Boolean) : [],
+        note: "",
       });
     }
   }
@@ -97,67 +102,8 @@ export function parseAddDate(raw: string | null): number | null {
   return n < 1e11 ? n * 1000 : n;
 }
 
-export function parseUrlList(text: string): string[] {
-  return text
-    .split(/[\s,;\n]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-export interface ImportOptions {
-  now: number;
-  libraryId?: string;
-}
-
-export interface NewLink extends SalvageLink {}
-
-export function toLink(b: { url: string; title?: string; folder?: string; addDate?: number | null; tags?: string[] }, opts: ImportOptions): NewLink | null {
-  const canon = canonicalUrl(b.url);
-  if (!canon || !isHttpish(canon)) return null;
-  const key = dedupeKey(canon);
-  return {
-    id: hashId(key),
-    url: canon,
-    title: (b.title ?? "").trim() || titleFromUrl(canon),
-    folder: b.folder?.trim() || "Imported",
-    domain: domainOf(canon),
-    dedupeKey: key,
-    addDate: b.addDate ?? null,
-    importedAt: opts.now,
-    status: "pile",
-    kept: false,
-    note: "",
-    openCount: 0,
-    lastOpenedAt: null,
-    deckCount: 0,
-    lastDeckAt: null,
-    snoozedUntil: null,
-    tags: b.tags ?? [],
-  };
-}
-
-export function toLinks(list: { url: string; title?: string; folder?: string; addDate?: number | null; tags?: string[] }[], opts: ImportOptions): { links: NewLink[]; skipped: number; invalid: number } {
-  const seen = new Set<string>();
-  const links: NewLink[] = [];
-  let skipped = 0;
-  let invalid = 0;
-  for (const item of list) {
-    const link = toLink(item, opts);
-    if (!link) {
-      invalid++;
-      continue;
-    }
-    if (seen.has(link.dedupeKey)) {
-      skipped++;
-      continue;
-    }
-    seen.add(link.dedupeKey);
-    links.push(link);
-  }
-  return { links, skipped, invalid };
-}
-
 export function findDuplicateGroups(links: SalvageLink[]): Map<string, SalvageLink[]> {
+
   const groups = new Map<string, SalvageLink[]>();
   for (const l of links) {
     const g = groups.get(l.dedupeKey);

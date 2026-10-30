@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { canonicalUrl, dedupeKey, domainOf, isHttpish, normalizeTitle, titleFromUrl } from "../src/normalize.ts";
-import { findDuplicateGroups, parseAddDate, parseBookmarksHtml, toLinks, nearDuplicateTitleGroups } from "../src/bookmarks.ts";
+import { findDuplicateGroups, parseAddDate, parseBookmarksHtml, nearDuplicateTitleGroups } from "../src/bookmarks.ts";
+import { sanitizeLink } from "../src/state.ts";
 import { fromJson, toBookmarksHtml, toCsv, toJson } from "../src/exporters.ts";
-import { buildWeeklyReminderIcs, parseIcsForTest } from "../src/ics.ts";
+import { buildWeeklyReminderIcs } from "../src/ics.ts";
 import type { SalvageLink } from "../src/model.ts";
 
 export const NOW = Date.UTC(2026, 9, 27, 12, 0, 0);
+
+function parseIcs(ics: string): Record<string, string> {
+  const unfolded = ics.replace(/\r\n[ \t]/g, "");
+  const out: Record<string, string> = {};
+  for (const line of unfolded.split(/\r?\n/)) {
+    const i = line.indexOf(":");
+    if (i > 0) out[line.slice(0, i)] = line.slice(i + 1);
+  }
+  return out;
+}
+
+
 
 export function makeLink(over: Partial<SalvageLink> = {}): SalvageLink {
   const url = canonicalUrl(over.url ?? "https://example.com/post");
@@ -116,10 +129,12 @@ describe("parseBookmarksHtml", () => {
     expect(items[0].addDate).toBe(1500000000000);
     expect(items[1].addDate).toBe(1500000001000);
   });
-  it("keeps javascript: entries parseable but toLinks drops them as invalid", () => {
-    const { links, invalid } = toLinks(parseBookmarksHtml(chromeFile), { now: NOW });
-    expect(invalid).toBe(1);
-    expect(links.map((l) => l.url)).not.toContain("javascript:void(0)");
+  it("parses a javascript: entry, and the production path refuses to store it", () => {
+    const items = parseBookmarksHtml(chromeFile);
+    expect(items.some((i) => i.url.startsWith("javascript:"))).toBe(true);
+    const stored = items.map((i) => sanitizeLink({ url: i.url, title: i.title, folder: i.folder, addDate: i.addDate, tags: i.tags, note: i.note }, NOW)).filter(Boolean);
+    expect(stored).toHaveLength(3);
+    expect(stored.some((l) => l.url.startsWith("javascript:"))).toBe(false);
   });
   it("keeps every anchor when a file crams them onto one line", () => {
     const items = parseBookmarksHtml('<DT><A HREF="https://a.com/1">one</A><DT><A HREF="https://a.com/2">two</A><DT><A HREF="https://a.com/3">three</A>');
@@ -128,11 +143,11 @@ describe("parseBookmarksHtml", () => {
   it("ignores commented-out bookmarks", () => {
     expect(parseBookmarksHtml('<!-- <DT><A HREF="https://gone.com/x">nope</A> -->')).toEqual([]);
   });
-  it("deduplicates the same URL inside one file", () => {
+  it("gives one link a single dedupe key however the file spells it", () => {
     const dupe = `<DL><p><DT><A HREF="https://a.com/x" ADD_DATE="1500000000">one</A><DT><A HREF="https://www.a.com/x/">two</A></DL><p>`;
-    const { links, skipped } = toLinks(parseBookmarksHtml(dupe), { now: NOW });
-    expect(links).toHaveLength(1);
-    expect(skipped).toBe(1);
+    const keys = parseBookmarksHtml(dupe).map((i) => sanitizeLink({ url: i.url, title: i.title, folder: i.folder, addDate: i.addDate, tags: i.tags, note: i.note }, NOW)?.dedupeKey);
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toBe(keys[1]);
   });
   it("survives an empty file and a file of junk", () => {
     expect(parseBookmarksHtml("")).toEqual([]);
@@ -187,8 +202,9 @@ describe("exporters", () => {
     expect(items).toHaveLength(2);
     expect(items.map((i) => i.url).sort()).toEqual(["https://x.com/one", "https://x.com/two"]);
     expect(items.find((i) => i.url === "https://x.com/two")?.title).toBe('Quotes "and" commas, here');
-    const reimported = toLinks(items, { now: NOW });
-    expect(reimported.links).toHaveLength(2);
+    const reimported = items.map((i) => sanitizeLink({ url: i.url, title: i.title, folder: i.folder, addDate: i.addDate, tags: i.tags, note: i.note }, NOW)).filter(Boolean);
+    expect(reimported).toHaveLength(2);
+    expect(reimported.find((l) => l.url === "https://x.com/two")?.note).toBe("why I saved it");
   });
 });
 
@@ -196,7 +212,7 @@ describe("ics reminder", () => {
   it("uses CRLF, a weekly RRULE and escapes commas", () => {
     const ics = buildWeeklyReminderIcs({ now: NOW, description: "Hi, there" });
     expect(ics).toContain("\r\n");
-    const rows = parseIcsForTest(ics);
+    const rows = parseIcs(ics);
     expect(rows.RRULE).toBe("FREQ=WEEKLY;BYDAY=MO");
     expect(ics.replace(/\r\n[ \t]/g, "")).toContain("DESCRIPTION:Hi\\, there");
     expect(ics).toContain("BEGIN:VCALENDAR");
@@ -213,7 +229,7 @@ describe("ics reminder", () => {
   });
   it("rolls forward to the next requested weekday, never a past date", () => {
     const ics = buildWeeklyReminderIcs({ now: NOW, weekday: 6 });
-    const dt = parseIcsForTest(ics).DTSTART;
+    const dt = parseIcs(ics).DTSTART;
     expect(Number(dt.slice(0, 4))).toBeGreaterThanOrEqual(2026);
     expect(dt).toMatch(/^\d{8}T\d{6}$/);
   });

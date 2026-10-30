@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, type Settings } from "./model.ts";
+import { type Settings } from "./model.ts";
 
 export const FREE_LINK_LIMIT = 300;
 export const FREE_DECK_SIZE = 5;
@@ -50,10 +50,14 @@ export function has(cap: Capability, e: Entitlement): boolean {
 }
 
 /**
- * THE BILLING SEAM. v1 reads only local state, so this is a soft trial by construction:
- * clearing site data resets it, and there is no server to argue with. A real checkout
- * (Stripe/Paddle/LemonSqueezy) would write a signed licence record into `proClaim` and
- * `verifyLicenceSignature()` below would check it instead of returning "not-shipped".
+ * THE BILLING SEAM — the only function that decides what a user may do.
+ *
+ * v1 reads local state only, so the trial is soft by construction: clearing site data resets
+ * the clock and there is no server to argue with. To sell Pro, keep this as the single read
+ * point: accept an optional signed licence (from a provider webhook the user pastes or a
+ * hosted checkout returns) on `Settings`, prefer it over the `firstRunAt` maths below, and
+ * leave every call site untouched. There is deliberately no licence verification in v1
+ * because there is nothing to verify yet.
  */
 export function getEntitlement(settings: Settings, now: number): Entitlement {
   const start = settings.firstRunAt;
@@ -95,7 +99,7 @@ export function getEntitlement(settings: Settings, now: number): Entitlement {
     hoursLeft: 0,
     linkLimit: FREE_LINK_LIMIT,
     deckSize: FREE_DECK_SIZE,
-    reason: `Trial ended. The daily deck, search, browsing your whole library and every export stay free. What locks is the Pro toolset, and new links past the first  stop importing — nothing you already saved is trimmed, hidden or deleted.`,
+    reason: `Trial ended. The daily deck, search, browsing your whole library and every export stay free. What locks is the Pro toolset, and new links past the first ${FREE_LINK_LIMIT} stop importing — nothing you already saved is trimmed, hidden or deleted.`,
   };
 }
 
@@ -114,13 +118,4 @@ export function ensureTrialStarted(settings: Settings, now: number): { settings:
 }
 
 
-export function trialProgress(settings: Settings, now: number): number {
-  if (!settings.firstRunAt) return 0;
-  const days = settings.trialLengthDays || DEFAULT_TRIAL_DAYS;
-  const elapsed = now - settings.firstRunAt;
-  return Math.min(1, Math.max(0, elapsed / (days * DAY_MS)));
-}
 
-export function defaultSettings(): Settings {
-  return { ...DEFAULT_SETTINGS, trialLengthDays: DEFAULT_TRIAL_DAYS };
-}

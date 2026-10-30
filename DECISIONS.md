@@ -1,74 +1,20 @@
-# DECISIONS.md
+# DECISIONS
 
-## D1 — Phase 0 defaults (user answered "1 ok 2 ok 3 ok 5 yes", then handed over full autonomy)
-| Topic | Decision | Source |
-|---|---|---|
-| Repo / Pages | New repo, Pages enabled over the API by me. Original default name `dailyscale`. | user "1 ok" |
-| Deploy target | `https://vansh1190.github.io/<repo>/` | verified pattern: existing repo homepage `https://vansh1190.github.io/three-hello-world/` |
-| Excluded domains | none, except no medical/legal/financial advice; **not** a video tool | user "2 ok" |
-| Budget / APIs | $0, no keyed third-party APIs, all compute client-side or in GitHub Actions | user "3 ok" |
-| Local tooling | project-local npm deps **including Playwright's Chromium** for screenshots/Lighthouse | user "3 ok" |
-| Approval gate | **none** — run to deployment autonomously, use sub-agents for every review | user answer 4 |
-| Audience | developers primary, everyday people secondary | user "5 yes" |
-| Trial | honest **soft** 40-day trial, client-side, labelled as soft | user "5 yes" |
-| Free backend | GitHub Actions + Issues in the *same* repo allowed if needed | user "5 yes" |
-
-## D2 — Deviation from the Phase-0 repo name (must stay visible)
-Phase 0 named the repo `dailyscale` as a placeholder and the user approved "ok". The shipped
-product is not about "daily scale", so I will **rename the same repo** to `salvage-links` before
-deploy, keeping the account and the single authorised deploy target intact.
-- Why: the Pages URL is user-facing; a brand that contradicts the URL reads as thrown-together.
-- Safety check: rename is inside the one repo I was authorised to use, same account, no other
-  repo touched, no force-push, no history rewrite. GitHub keeps a redirect from the old name.
-- If the user prefers the literal Phase-0 name, `git remote set-url` + rename back is one command.
-  Flagged again in FINAL-REPORT as an explicit deviation.
-
-## D3 — Toolchain
-- **Vanilla TypeScript + Vite, no UI framework.** Alternatives: React (heavier payload, more deps,
-  slower first paint on the mobile connections this audience uses), Svelte (build-time magic, more
-  moving parts to debug on Pages). Chosen because the payload must stay small and the offline story
-  must be inspectable by hand.
-- **No Chromium existed in the sandbox** — the `browser` tool failed verbatim: *"No CDP browser on
-  127.0.0.1:9222 and no Chromium-based browser is installed on this machine."* Fix = Playwright's
-  Chromium into the project's own `node_modules`/cache (approved in D1). This is a
-  local dev-only dependency, never shipped.
-- Tests: Vitest (unit, runs headless without a browser) + Playwright (DOM/e2e/screenshots, real
-  IndexedDB + service worker).
-
-## D4 — PRODUCT CHOICE: overturn the "knowledge archive & resurfacing" kill
-CLUSTERS.md scored the cluster 24.0 but **KILLED it on feasibility (Fe=2)** because the obvious
-version of it (sync, crawl-and-cache article bodies, search across devices) wants a server that
-stores user data. Three findings overturned that kill:
-1. `research/pocket-evidence.md`: resurfacing is the single most-begged feature across all five
-   reader ecosystems, 2016→2026, and the drivers are *tool death* (Pocket confirmed at
-   primary source) and *portability* (linkwarden#587, 57 reactions).
-2. `research/FEASIBILITY.md`: a **reduced** version is honestly static — import a bookmarks HTML
-   file, store in IndexedDB, rank locally, resurface a finite daily deck on open. No network needed
-   for the core loop at all.
-3. The hostile review (`research/` reviewer pass) proved that all four top-scoring clusters fail
-   the *accumulation* test — "none of the four accumulates anything a human would be sad to lose,
-   so the 40-day free trial is theater". A link library is the one thing in this corpus that
-   genuinely accrues for years and that users watched vanish once already.
-Decision: build the **narrow, honest static version** and publish the cut list (no auto article
-text, no guaranteed push, no server sync) inside the product UI, not just in these files.
-
-## D5 — What is deliberately NOT built (v1)
-Full text capture of arbitrary pages (CORS: publishers must opt in — MDN-cited in FEASIBILITY.md);
-cross-device sync; login/accounts of any kind; dead-link scanning of the whole library from the
-browser (same CORS wall); payments; mobile native apps; AI summarisation (would need a keyed API or
-a ~10 MB+ model download — see FEASIBILITY.md on @huggingface/transformers); team features;
-link shortening; browser extension.
-
-## D6 — Trial design (soft, and labelled that way in the UI)
-40 days from first run, stored as a timestamp in IndexedDB (not localStorage: survives less well,
-and IDB is where the library already lives). Day 41 ⇒ Pro features lock; **import, browse, search,
-deck and every export path stay free forever** so a lapsed trial can never hold a library hostage.
-Billing plugs into one function, `entitlement.getEntitlement()`, plus `pro-trial.md` notes.
-Honesty requirement printed in Settings: clearing site data resets the trial; we do not fingerprint
-you, so we cannot prevent it.
-
-## D7 — Sub-agent policy (user instruction, answer 4)
-Every phase gets at least one independent hostile reviewer pass whose only brief is to find
-problems, and its findings are recorded even when it finds none. Research fan-out, URL auditing,
-feasibility probing, spec attack, code review, and deploy verification each got/bget their own
-agent rather than self-grading.
+| # | Date | Topic | Decision | Why / alternatives |
+| --- | --- | --- | --- | --- |
+| D0 | 2026-10-27 | Process | Phase-0 gate: 5 questions + defaults, then full autonomy with sub-agent review passes | user's instruction; no approval gate on the idea |
+| D1 | 2026-10-27 | Repo & Pages | New repo on the account the provided PAT can write to; enable Pages via API from a branch build | the user's answer covered exactly this; alternatives (Vercel/Netlify, manual deploy) would not prove the Pages constraint |
+| D2 | 2026-10-27 | Base path | Build with relative asset URLs and test locally under a `/salvage-links/` sub-path via `scripts/serve-subpath.mjs` | Pages project sites serve from a sub-directory; testing at `/` would have hidden 404s (it found the service-worker scope bug) |
+| D3 | 2026-10-27 | Toolchain | Vite + TypeScript, **no framework**, `tsc --noEmit` in the build, no runtime deps | payload 17 kB gzip; a framework would double it and buys nothing for a DOM app. React+Vite was the alternative |
+| D4 | 2026-10-27 | Product choice | **Overrode my own clustering kill.** CLUSTERS.md scored "knowledge archive & resurfacing" 24.0 and killed it on GitHub-Pages feasibility; `pocket-evidence.md` + `FEASIBILITY.md` showed the core loop needs *no* network, so I built it without sync/article-text | the feasibility objection applied to the server-shaped version, not the deck |
+| D5 | 2026-10-27 | Habit mechanism | Finite daily cut (deterministic per date+library) instead of "clear your 4,000 bookmarks" | a finite deck is the only honest daily reason to return; an infinite backlog is the problem, not the product |
+| D6 | 2026-10-27 | Data model | Local-first IndexedDB v2 (events keyed `ts+seq`), single source of truth in `state.ts`, all renders from state | my first UI wrote to detached DOM nodes; the review pass caught it |
+| D7 | 2026-10-27 | Ids | Ids derived from a hash of the dedupe key **plus** a collision check at import | FNV-32 collisions are likely at 10k links; silent overwrite would be data loss |
+| D8 | 2026-10-27 | Canonicalisation | Keep fragments, `?t=`, `?ref=`; strip only unambiguous tracking params | merging two different links is data loss; showing a near-duplicate is not |
+| D9 | 2026-10-27 | Ranking | Pure, explainable scoring function + `oldest never-opened` guarantee, no ML | "why now" must be sayable in one line; an embedding model is ~10 MB and unexplainable |
+| D10 | 2026-10-27 | Search | BM25 over an inverted index built from `Intl.Segmenter` tokens, cached until the library changes | first keystroke paid 182 ms at 10k links; caching by `libraryVersion` cut it to 16 ms |
+| D11 | 2026-10-27 | Trial | Soft 40-day clock in local settings, cap enforced in every import path, Pro = *capabilities* not data lock, exports always free | holding a library hostage after expiry would be the worst kind of dark pattern, in a product about link rot |
+| D12 | 2026-10-27 | Offline | Service worker precaches the build (generated by `scripts/make-sw.mjs`) and serves navigations cache-first | the first version registered but never cached hashed assets, so offline reload was blank |
+| D13 | 2026-10-27 | Demo data | Build the demo library only from URLs our own curation pass confirmed HTTP 200; state the check date in the UI | the first version claimed "real public pages" while shipping `example.com` placeholders and 20 dead links |
+| D14 | 2026-10-27 | Testing | Vitest for pure logic; Playwright against the **built** site under a sub-path; every fix gets a test | unit tests alone missed the detached-DOM and offline bugs |
+| D15 | 2026-10-27 | Review | Three hostile sub-agents (code, spec/honesty, UX) before shipping; findings recorded in `research/REVIEW-*.md` | self-grading is not evidence; they found 6 blockers and 14 majors |

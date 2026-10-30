@@ -1,40 +1,59 @@
-# STATE.md — read me first after a restart
+# STATE.md — resume here
 
-**Phase:** 2 SELECT done → 3 PROTOTYPE in progress
-**Updated:** 2026-10-27
+**Phase:** 8 DONE, shipped and verified live · **Phase 9:** deep code review done and all 14 findings fixed
+**Updated:** 2026-10-27 · **Live:** https://vansh1190.github.io/salvage-links/ · repo `Vansh1190/salvage-links`
 
-## What exists
-- `/root/workspace-agent-server/dailyscale` (git repo, no remote yet).
-- Memory files: `STATE.md DECISIONS.md RESEARCH.md SPEC.md BLOCKERS.md LOG.md`.
-- `research/`: hn.md(23) github.md(18) reddit.md(20) stackexchange.md(21) web.md(40) = **122 pain points, 5 source types**;
-  CLUSTERS.md (12 clusters, weighted); AUDIT.md (47 URLs re-opened: 40 pass, 7 blocked, 0 fabricated);
-  FEASIBILITY.md (static-hosting truth, MDN/npm-cited); pocket-evidence.md (24 GitHub issues + HN threads).
+## Product
+**Salvage** deals you a **finite deck of your own forgotten saved links each day** (5 by default);
+~4 s per card — Open / Keep for reading / Not now (dated) / Toss, all undoable. Queue, local BM25
+search, pulse + streak, folder rename, duplicate cleanup, notes, JSON/CSV/bookmarks.html export,
+`.ics` reminder, 40-day soft Pro trial, offline service worker, keyboard-first, 7 routes.
+No account, no server, no analytics; library lives in IndexedDB.
+Spec `SPEC.md` · choice rationale `DECISIONS.md` (D4) · evidence `RESEARCH.md` + `research/`
+User docs `README.md`, `docs/PRIVACY.md`, `docs/PRO-TRIAL.md` · honesty `BLOCKERS.md` · outcome `FINAL-REPORT.md`
 
-## The product (SPEC.md)
-Salvage — local-first bookmark-graveyard rescue. Daily finite deck of your own old links, 3-second triage
-(open/keep/snooze/toss), queue, weekly pulse, IndexedDB only, no account, no upload. 40-day soft Pro trial.
-Repo will be renamed `dailyscale` → `salvage-links` before deploy (DECISIONS D2, deliberate deviation).
+## Phase 9 — deep review + fixes (2026-10-27)
 
-## How to resume
-```
+`docs/REVIEW-DEEP.md` is the record: 2 P0, 4 P1, 6 P2, a P3 sweep, and **three of my own
+suspicions disproven by measurement** (hostile-id selector crash, `computePulse` slowness,
+"Return stalled" render storm). Every finding is fixed; the resolution table at the end names
+the command or test that proves each one. Two new e2e scenarios exist only because of this pass
+(deck trimmed by a lapsed plan without deleting today's decks; two records sharing one id both
+stay visible), and the two tests that leaned on a second, unshipped import path now exercise
+`sanitizeLink`, the code production actually runs.
+
+## Gate status (all green)
+- `npx vitest run` → **58 passed**
+- `npx playwright test` → **22 passed** (11 scenarios × desktop + mobile), run against the **built**
+  site served under a `/salvage-links/` base path
+- `node scripts/verify-live.mjs` → **18/18** against the live URL (assets, manifest, SW scope,
+  import, triage, reload persistence, offline with `transferSize===0`, no third-party requests,
+  no console errors, 0 px overflow at 390)
+- `node scripts/verify.mjs` → **axe 0 violations on all 7 routes** (populated library, both
+  viewports); 10k-link run: import 923 ms, triage 64 ms, pulse 98 ms, search 419→16 ms
+- Lighthouse: local build **100/100/100/100** (desktop simulated); **live URL 98/100/100/100**
+  (mobile simulated, LCP 1.4 s, TBT 0 ms, CLS 0)
+
+## Open deviations (do not "fix" by asserting they are fine)
+1. Remote `main` has **3 commits** (slice 1, slice 2, one squashed remainder of 8 slices) — GitHub
+   refused the 3rd replayed tree with a durable 404 (9 retries, 2 s→60 s). Local `git log` = 11;
+   `LOG.md` keeps every slice.
+2. **CI does not run** — token lacks `workflow` scope; valid workflows sit in `ci/` (see `ci/README.md`).
+3. No `git push` works with either available token; publish path is `scripts/publish-via-api.mjs`
+   (Git Data API), which also force-updates `gh-pages` and rebuilds Pages.
+4. Everything about Safari/Firefox is documented, never observed — only Chromium exists here.
+
+## Commands
+```bash
 cd /root/workspace-agent-server/dailyscale
-npm run dev      # vite
-npm test         # vitest (pure logic, no browser)
-npm run e2e      # playwright (needs ./node_modules/.bin/playwright install chromium)
+npm run dev | npm test | npm run build | npm run e2e
+npm run lighthouse        # scripts/audit.mjs (builds + serves under the Pages base path)
+npm run audit             # scripts/verify.mjs (axe + 10k stress)
+node scripts/verify-live.mjs          # checks the DEPLOYED site
+node scripts/publish-via-api.mjs      # needs GH_TOKEN; rebuilds main + gh-pages + Pages
+npm run curate            # rebuilds the demo library from URLs answering 200 today
 ```
-Deploy = build to `dist/`, push to `main`, enable Pages via API (see LOG.md for the exact curl).
 
-## Next actions, in order
-1. Scaffold Vite+TS, Playwright Chromium install (dev-only), vitest wired.
-2. Slice 1 data layer (IDB + bookmarks parser + dedupe key) with tests → commit.
-3. Slice 2 deck + resurfacer pure fn + tests → commit → **Chromium screenshots at 1280px and 360px**.
-4. Slices 3-6 per SPEC.
-5. Phase 5 hardening (a11y, offline SW, empty/error states, Lighthouse).
-6. Phase 6 hostile review pass by sub-agents; fix; re-test.
-7. Phase 7 rename repo + push + enable Pages + verify live URL in Chromium.
-8. FINAL-REPORT.md.
-
-## Open risks right now
-- Playwright Chromium download not yet proven to work in this sandbox (Phase 0 `browser` tool failed: no browser installed).
-- Safari 7-day storage eviction is a real product risk, mitigated but not solved (research/FEASIBILITY.md).
-- No analytics ⇒ retention claims are inference, not measurement.
+## If resuming, next useful work
+`FINAL-REPORT.md` §6 — export-as-ritual nudge, BYO encrypted sync as the real paid feature,
+search in a worker, better "why now" reason ranking, private opt-in retention counters.

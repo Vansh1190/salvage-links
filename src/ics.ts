@@ -76,13 +76,3 @@ export function buildWeeklyReminderIcs(opts: ReminderOptions): string {
   ];
   return lines.join("\r\n") + "\r\n";
 }
-
-export function parseIcsForTest(ics: string): Record<string, string> {
-  const unfolded = ics.replace(/\r\n[ \t]/g, "");
-  const out: Record<string, string> = {};
-  for (const line of unfolded.split(/\r?\n/)) {
-    const i = line.indexOf(":");
-    if (i > 0) out[line.slice(0, i)] = line.slice(i + 1);
-  }
-  return out;
-}

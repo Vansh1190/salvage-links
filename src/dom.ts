@@ -46,15 +46,6 @@ export function announce(message: string): void {
   }, 30);
 }
 
-export function focusFirst(container: HTMLElement, selector = "button, [href], input, select, textarea"): void {
-  const el = container.querySelector<HTMLElement>(selector);
-  if (el) el.focus({ preventScroll: true });
-}
-
-export function pct(n: number): string {
-  return `${Math.round(n)}%`;
-}
-
 export function shortHost(domain: string): string {
   return domain.length > 28 ? domain.slice(0, 27) + "…" : domain;
 }

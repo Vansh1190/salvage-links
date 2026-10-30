@@ -11,15 +11,14 @@ export interface Pulse {
   tossed: number;
   kept: number;
   salvaged7d: number;
-  salvagedTotal: number;
   progressPct: number;
   streakDays: number;
   oldestSaved: number | null;
   neverOpenedPile: number;
-  duplicateGroups: number;
+  /** Top 8, for the bars. */
   topDomains: { domain: string; count: number }[];
-  byFolder: { folder: string; count: number }[];
-  savedPerMonth: number;
+  /** Every folder, biggest first — the rename UI needs more than the top 8. */
+  folders: { folder: string; count: number }[];
 }
 
 export function computePulse(links: SalvageLink[], events: SalvageEvent[], now: number, streak: number): Pulse {
@@ -29,8 +28,6 @@ export function computePulse(links: SalvageLink[], events: SalvageEvent[], now: 
   let kept = 0;
   let neverOpenedPile = 0;
   let oldest: number | null = null;
-  let addDateSum = 0;
-  let addDateN = 0;
   for (const l of links) {
     counts[l.status]++;
     if (l.kept) kept++;
@@ -38,28 +35,20 @@ export function computePulse(links: SalvageLink[], events: SalvageEvent[], now: 
     const anchor = l.addDate;
     if (anchor !== null) {
       if (oldest === null || anchor < oldest) oldest = anchor;
-      addDateSum += anchor;
-      addDateN++;
     }
+
     if (l.domain) domainCount.set(l.domain, (domainCount.get(l.domain) ?? 0) + 1);
     const folder = l.folder || "(no folder)";
     folderCount.set(folder, (folderCount.get(folder) ?? 0) + 1);
   }
   const salvagedTypes = new Set(["keep", "toss", "queue-done"]);
-  let salvagedTotal = 0;
   let salvaged7d = 0;
   for (const e of events) {
     if (!salvagedTypes.has(e.type)) continue;
-    salvagedTotal++;
     if (now - e.ts <= 7 * DAY) salvaged7d++;
   }
   const resolved = counts.done + counts.tossed;
-  const dedupeSeen = new Set<string>();
-  let duplicateGroups = 0;
-  for (const l of links) {
-    if (dedupeSeen.has(l.dedupeKey)) duplicateGroups++;
-    else dedupeSeen.add(l.dedupeKey);
-  }
+  const folders = [...folderCount].sort((a, b) => b[1] - a[1]).map(([folder, count]) => ({ folder, count }));
   return {
     total: links.length,
     pile: counts.pile,
@@ -68,15 +57,12 @@ export function computePulse(links: SalvageLink[], events: SalvageEvent[], now: 
     tossed: counts.tossed,
     kept,
     salvaged7d,
-    salvagedTotal,
     progressPct: links.length ? Math.round((resolved / links.length) * 1000) / 10 : 0,
     streakDays: streak,
     oldestSaved: oldest,
     neverOpenedPile,
-    duplicateGroups,
     topDomains: [...domainCount].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([domain, count]) => ({ domain, count })),
-    byFolder: [...folderCount].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([folder, count]) => ({ folder, count })),
-    savedPerMonth: addDateN ? Math.round(addDateN / Math.max(1, (now - addDateSum / addDateN) / (30 * DAY))) : 0,
+    folders,
   };
 }
 

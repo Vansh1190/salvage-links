@@ -26,6 +26,29 @@ async function loadDemo(page: Page): Promise<number> {
   return Number(/(\d+) added/.exec(status)?.[1] ?? 0);
 }
 
+async function expireTrial(page: Page) {
+  await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const r = indexedDB.open("salvage", 2);
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const t = database.transaction("meta", "readwrite");
+      const store = t.objectStore("meta");
+      const g = store.get("settings");
+      g.onsuccess = () => {
+        const row = g.result as { key: string; value: Record<string, unknown> };
+        row.value = { ...row.value, firstRunAt: Date.now() - 45 * 86_400_000 };
+        store.put(row);
+      };
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+    });
+    database.close();
+  });
+}
+
 const deckTotal = async (page: Page) => Number(/of (\d+)/.exec((await page.getByTestId("deck-pos").textContent()) ?? "")?.[1] ?? 0);
 
 test("first visit is honest: empty state, no silent errors, real link to import", async ({ page, baseURL }) => {
@@ -281,5 +304,77 @@ test("a restored export re-joins the same library instead of doubling it", async
   await expect(page.getByTestId("import-status")).toContainText(new RegExp(`${added} already had`));
   await goRoute(page, "pulse");
   expect(Number((await page.locator(".stats dd").first().textContent())?.replace(/,/g, ""))).toBe(added - 1);
+  expect(errors).toEqual([]);
+});
+
+test("an expired plan trims the deck it already cut, without wiping today", async ({ page, baseURL }) => {
+  const errors = watchErrors(page);
+  await page.goto(baseURL!);
+  const added = await loadDemo(page);
+  await goRoute(page, "settings");
+  await page.getByLabel("Cards per day").fill("12");
+  await page.getByTestId("save-deck").click();
+  await expect(page.getByTestId("settings-feedback")).toContainText(/12 cards a day/);
+  await goRoute(page, "deck");
+  await expect(page.getByTestId("deck-pos")).toHaveText(/1 of 12/);
+
+  // Day 41, same calendar day, decks NOT deleted: the cut has to shrink itself.
+  await expireTrial(page);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText(/Trial ended · free plan/)).toBeVisible({ timeout: 15_000 });
+  await goRoute(page, "deck");
+  await expect(page.getByTestId("deck-pos")).toHaveText(/1 of 5/, { timeout: 15_000 });
+  await expect(page.getByTestId("action-feedback")).toContainText(/Free plan deals at most 5 cards/);
+  await goRoute(page, "library");
+  await expect(page.getByTestId("library-count")).toContainText(new RegExp(String(added)), { timeout: 15_000 });
+  expect(errors).toEqual([]);
+});
+
+test("two records sharing one id both stay visible", async ({ page, baseURL }) => {
+  const errors = watchErrors(page);
+  await page.goto(baseURL!);
+  const added = await loadDemo(page);
+  await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const r = indexedDB.open("salvage", 2);
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+    const base = (await new Promise<string[]>((resolve, reject) => {
+      const t = database.transaction("links", "readonly");
+      const req = t.objectStore("links").getAll();
+      req.onsuccess = () => resolve(req.result.map((l: { id: string }) => l.id));
+      req.onerror = () => reject(req.error);
+    })).filter(Boolean);
+    const first = base[0];
+    const clone = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const t = database.transaction("links", "readonly");
+      const req = t.objectStore("links").get(first);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    const colliding = {
+      ...clone,
+      url: "https://collision.example/twin",
+      title: "the twin with a stolen id",
+      dedupeKey: "https://collision.example/twin",
+      status: "pile",
+    };
+    await new Promise<void>((resolve, reject) => {
+      const t = database.transaction("links", "readwrite");
+      t.objectStore("links").put(colliding);
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+    });
+    database.close();
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await goRoute(page, "pulse");
+  await expect(page.getByTestId("pulse-title")).toBeVisible({ timeout: 15_000 });
+  const pile = Number((await page.locator(".stats dd").first().textContent())?.replace(/,/g, ""));
+  expect(pile).toBe(added);
+  await goRoute(page, "library");
+  await page.getByLabel(/Search library/i).fill("collision.example");
+  await expect(page.getByTestId("library-count")).toContainText(/1 match/, { timeout: 15_000 });
   expect(errors).toEqual([]);
 });

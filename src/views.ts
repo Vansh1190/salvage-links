@@ -1,10 +1,11 @@
 import { announce, clear, dateLabel, h, relTime, shortHost } from "./dom.ts";
-import { bulkTossDuplicates, canUndo, currentCard, currentReasons, deckPosition, importBookmarksHtml, importSnapshot, importUrlList, linkList, markDone, recordImport, recordImportError, renameFolder, resetAll, saveDeckSettings, setNote, setRoute, setStatus, state, triage, undo, type Route } from "./state.ts";
+import { libraryCounts, bulkTossDuplicates, canUndo, currentCard, currentReasons, deckPosition, importBookmarksHtml, importSnapshot, importUrlList, linkList, markDone, recordImport, recordImportError, renameFolder, resetAll, saveDeckSettings, setNote, setRoute, setStatus, state, triage, undo, type Route }from "./state.ts";
 import { findDuplicateGroups, nearDuplicateTitleGroups } from "./bookmarks.ts";
 import { buildIndex, search } from "./search.ts";
 import { computePulse, formatBytes, humanAge } from "./stats.ts";
 import { download, toBookmarksHtml, toCsv, toJson } from "./exporters.ts";
 import { buildWeeklyReminderIcs } from "./ics.ts";
+import { SAMPLE_META } from "./sample-meta.ts";
 import { FREE_DECK_SIZE, PRO_CAPABILITIES, has, type Capability } from "./trial.ts";
 import * as db from "./db.ts";
 import type { SalvageLink } from "./model.ts";
@@ -87,6 +88,13 @@ function emptyDeck() {
   );
 }
 
+function snoozeDate(): string {
+  const days = state.settings.snoozeDays > 0 ? state.settings.snoozeDays : 1;
+  return dateLabel(state.now + days * 86_400_000);
+}
+
+
+
 function deckActions() {
   const undoable = canUndo();
   return h(
@@ -139,9 +147,9 @@ function deckView() {
     h(
       "div",
       { class: "actions" },
-      h("button", { class: "btn btn-primary", type: "button", "data-action": "open", onclick: () => void triage("open") }, h("span", null, "Open"), h("kbd", null, "O")),
+      h("button", { class: "btn btn-primary", type: "button", "data-action": "open", onclick: () => { const c = currentCard(); const w = c ? window.open(c.url, "_blank", "noopener,noreferrer") : null; void triage("open", w); } }, h("span", null, "Open"), h("kbd", null, "O")),
       h("button", { class: "btn", type: "button", "data-action": "keep", onclick: () => void triage("keep") }, h("span", null, "Keep for reading"), h("kbd", null, "K")),
-      h("button", { class: "btn", type: "button", "data-action": "snooze", onclick: () => void triage("snooze") }, h("span", null, `Snooze ${state.settings.snoozeDays}d`), h("kbd", null, "S")),
+      h("button", { class: "btn", type: "button", "data-action": "snooze", onclick: () => void triage("snooze") }, h("span", null, "Not now — back " + snoozeDate()), h("kbd", null, "S")),
       h("button", { class: "btn btn-danger", type: "button", "data-action": "toss", onclick: () => void triage("toss") }, h("span", null, "Toss it"), h("kbd", null, "X")),
     ),
     deckActions(),
@@ -243,6 +251,59 @@ function libraryView() {
   return h("section", { class: "card", "aria-label": "Library" }, h("h2", null, "Library"), input, resultsWrap);
 }
 
+function foldersCard(p: ReturnType<typeof computePulse>) {
+  const listWrap = h("div", { "data-testid": "folder-list" });
+  const locked = !has("bulk-cleanup", state.entitlement);
+  const repaint = (filter: string) => {
+    const all = p.folders;
+    const shown = filter ? all.filter((f) => f.folder.toLowerCase().includes(filter)) : all.slice(0, 25);
+    clear(listWrap);
+    if (!all.length) {
+      listWrap.append(h("p", { class: "muted" }, "No folders yet — they appear when you import a bookmarks file."));
+      return;
+    }
+    listWrap.append(
+      h("p", { class: "muted small" }, filter ? `${shown.length} of ${all.length} folders match “${filter}”` : `${all.length} folders — showing ${shown.length}. Type to find another.`),
+      shown.length
+        ? h(
+            "ul",
+            { class: "link-list" },
+            shown.map((f) => {
+              const input = h("input", { type: "text", value: f.folder, "aria-label": `New name for folder ${f.folder}` });
+              return h(
+                "li",
+                { class: "link-row" },
+                h("div", { class: "link-main" }, h("span", { class: "link-title" }, f.folder), h("span", { class: "muted small" }, `${f.count} link${f.count === 1 ? "" : "s"}`)),
+                h(
+                  "div",
+                  { class: "link-actions" },
+                  input,
+                  h("button", { class: "btn btn-tiny", type: "button", disabled: locked ? true : undefined, "data-focus-key": `rename:${f.folder}`, onclick: () => void renameFolder(f.folder, input.value).then((n) => say(n ? `Renamed “${f.folder}” → “${input.value.trim()}” for ${n} links.` : "Type a different folder name first.")) }, "Rename"),
+                ),
+              );
+            }),
+          )
+        : h("p", { class: "muted" }, `No folder name contains “${filter}”.`),
+    );
+  };
+  const finder = h("input", {
+    type: "search",
+    class: "search-box",
+    placeholder: "Find a folder by name",
+    "aria-label": "Find a folder by name",
+    oninput: (e: Event) => repaint((e.target as HTMLInputElement).value.trim().toLowerCase()),
+  });
+  repaint("");
+  return h(
+    "section",
+    { class: "card", "aria-labelledby": "folders-h" },
+    h("h2", { id: "folders-h" }, "Folders"),
+    h("p", { class: "muted small" }, locked ? "Renaming moves every link in the folder. Bulk cleanup is a Pro tool, so renaming is locked right now." : "Renaming moves every link in the folder."),
+    finder,
+    listWrap,
+  );
+}
+
 function pulseView() {
   const links = linkList();
   const p = computePulse(links, state.events, state.now, state.settings.streakDays);
@@ -261,42 +322,16 @@ function pulseView() {
     null,
     h("section", { class: "card", "aria-label": "Numbers" }, h("h2", { "data-testid": "pulse-title" }, "Pulse"), h("dl", { class: "stats" }, stats.flatMap(([k, v]) => [h("dt", null, k), h("dd", null, v)])), h("p", { class: "muted small" }, `${p.salvaged7d} decided this week · ${p.neverOpenedPile.toLocaleString()} in the pile were never opened · ${dupes.size} duplicate URL${dupes.size === 1 ? "" : "s"}`)),
     p.topDomains.length ? h("section", { class: "card", "aria-label": "Where your links live" }, h("h2", null, "Where your links live"), h("ul", { class: "bars" }, p.topDomains.map((d) => h("li", null, h("span", null, d.domain), h("span", { class: "bar-track" }, h("span", { class: "bar", style: `width:${Math.round((d.count / maxDomain) * 100)}%` })), h("span", { class: "muted" }, String(d.count)))))) : null,
-    h(
-      "section",
-      { class: "card", "aria-labelledby": "folders-h" },
-      h("h2", { id: "folders-h" }, "Folders"),
-      h("p", { class: "muted small" }, "Renaming moves every link in the folder. Bulk cleanup is a Pro tool."),
-      p.byFolder.length
-        ? h(
-            "ul",
-            { class: "link-list", "data-testid": "folder-list" },
-            p.byFolder.map((f) => {
-              const input = h("input", { type: "text", value: f.folder, "aria-label": `New name for folder ${f.folder}` });
-              return h(
-                "li",
-                { class: "link-row" },
-                h("div", { class: "link-main" }, h("span", { class: "link-title" }, f.folder), h("span", { class: "muted small" }, `${f.count} link${f.count === 1 ? "" : "s"}`)),
-                h(
-                  "div",
-                  { class: "link-actions" },
-                  input,
-                  h("button", { class: "btn btn-tiny", type: "button", disabled: has("bulk-cleanup", state.entitlement) ? undefined : true, onclick: () => void renameFolder(f.folder, input.value).then((n) => say(n ? `Renamed “${f.folder}” → “${input.value.trim()}” for ${n} links.` : "Type a different folder name first.")) }, "Rename"),
-                ),
-              );
-            }),
-          )
-        : h("p", { class: "muted" }, "No folders yet — they appear when you import a bookmarks file."),
-    ),
+    foldersCard(p),
   );
 }
-
 function importStatusLine() {
   const err = state.lastImportError;
   const res = state.lastImport;
   if (err) return h("p", { class: "locked", "data-testid": "import-status" }, `Could not import: ${err}`);
   if (!res) return h("p", { class: "muted", "data-testid": "import-status" }, "Pick or drop a file. Nothing leaves this browser.");
   const parts = [`${res.added} added`, `${res.merged} already had`, `${res.invalid} not a web link`];
-  if (res.blockedByPlan) parts.push(`${res.blockedByPlan} over the free ${state.entitlement.linkLimit} link cap — not imported`);
+  if (res.blockedByPlan) parts.push(`${res.blockedByPlan} over the free cap of ${state.entitlement.linkLimit} links you have not tossed — not imported`);
   return h("p", { class: "muted", "data-testid": "import-status" }, `${res.source}: ${parts.join(", ")}.`);
 }
 
@@ -348,7 +383,7 @@ function importView() {
       "section",
       { class: "card" },
       h("h2", null, "No file to hand?"),
-      h("p", { class: "muted small" }, "Loads a demo library from the URLs our own research pass opened (a few may have moved or died since — that is half the point). Folders and save dates are synthetic, so you can watch how the deck handles an age spread. Nothing here came from a real person’s browser."),
+      h("p", { class: "muted small" }, "Loads a demo library of " + SAMPLE_META.links + " links that our own curation pass confirmed answering HTTP 200 on " + SAMPLE_META.checkedOn +  "(see docs/SAMPLE-STATUS.md). Folders and save dates are synthetic, so the deck has an age spread to work with. No real person\u2019s browser was used."),
       h("button", { class: "btn", type: "button", "data-testid": "demo-load", onclick: () => void fetch(new URL("sample-bookmarks.html", document.baseURI).href).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); }).then((t) => importBookmarksHtml(t, "demo library")).then(recordImport).catch((e) => recordImportError(e instanceof Error ? e.message : String(e))).then(announceStatus) }, "Load demo library"),
     ),
     h(
@@ -382,14 +417,16 @@ function importView() {
 
 function settingsView() {
   const e = state.entitlement;
+  const carried = libraryCounts();
   const total = state.settings.trialLengthDays || 40;
   const elapsed = e.plan === "pro-expired" ? total : total - (e.daysLeft ?? total);
   const deckSize = h("input", { id: "decksize", type: "number", min: "1", max: "20", value: String(state.settings.deckSize), "aria-label": "Cards per day" });
   const snooze = h("input", { id: "snooze", type: "number", min: "1", max: "365", value: String(state.settings.snoozeDays), "aria-label": "Snooze length in days" });
-  const sizeRow = h("p", { class: "muted small" }, "Checking browser storage…");
-  void db.estimate().then((s) => {
-    sizeRow.textContent = s.error ? `Storage estimate unavailable: ${s.error}` : `Browser storage in use: ${formatBytes(s.usage)} of ${formatBytes(s.quota)} · persistence ${s.persisted ? "granted" : "not granted"}`;
-  });
+  const storageLine = state.storage
+    ? h("p", { class: "muted small", "data-testid": "storage-line" }, state.storage.error
+        ? `Storage estimate unavailable: ${state.storage.error}`
+        : `Browser storage in use: ${formatBytes(state.storage.usage)} of ${formatBytes(state.storage.quota)} · persistence ${state.storage.persisted ? "granted" : "not granted"}`)
+    : h("p", { class: "muted small", "data-testid": "storage-line" }, "Checking browser storage…");
   return h(
     "div",
     null,
@@ -400,13 +437,14 @@ function settingsView() {
       h("p", null, e.reason),
       h(
         "div",
-        { class: "progress-track", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(total), "aria-valuenow": String(Math.min(total, Math.max(0, elapsed))), "aria-valuetext": `${Math.min(total, Math.max(0, elapsed))} of ${total} trial days used` },
+        { class: "progress-track", role: "progressbar", "aria-label": "Trial days used", "aria-valuemin": "0", "aria-valuemax": String(total), "aria-valuenow": String(Math.min(total, Math.max(0, elapsed))), "aria-valuetext": `${Math.min(total, Math.max(0, elapsed))} of ${total} trial days used` },
         h("div", { class: "progress-fill", style: `width:${Math.min(100, (elapsed / total) * 100)}%` }),
       ),
       h("p", { class: "small" }, `Started ${e.trialStart ? dateLabel(e.trialStart) : "not yet"} · ends ${e.trialEnds ? dateLabel(e.trialEnds) : "—"}`),
       h("p", { class: "locked small" }, "A soft trial, honestly labelled: this is a static site, so clearing site data resets the clock and we do not fingerprint you to stop that."),
       h("h3", null, "Pro tools"),
       h("ul", { class: "caps" }, PRO_CAPABILITIES.map((c: Capability) => h("li", { class: has(c, e) ? "cap-on" : "cap-off" }, `${has(c, e) ? "✓" : "·"} ${c.replace(/-/g, " ")}`))),
+      h("p", { class: "muted small", "data-testid": "plan-line" }, `${carried.active} link${carried.active === 1 ? "" : "s"} carried${carried.total > carried.active ? ` (${carried.total - carried.active} tossed, kept on disk and excluded from the cap)` : ""} · ${e.linkLimit === null ? "no link cap while Pro" : `free cap ${e.linkLimit} links`}`),
       h("p", { class: "muted small" }, `Always free: the daily deck up to ${FREE_DECK_SIZE} cards, search, import, browsing your whole library, and every export.`),
     ),
     h(
@@ -430,7 +468,7 @@ function settingsView() {
         h("button", { class: "btn", type: "button", disabled: has("ics-reminder", e) ? undefined : true, "data-focus-key": "export-ics", onclick: () => { download("salvage-reminder.ics", "text/calendar", buildWeeklyReminderIcs({ now: Date.now(), url: location.href })); say("Downloaded a weekly calendar reminder."); } }, "Weekly reminder (.ics)"),
         h("button", { class: "btn", type: "button", "data-testid": "persist-btn", "data-focus-key": "persist", onclick: () => void db.requestPersistence().then((ok) => say(ok ? "The browser granted persistent storage." : "The browser did not grant persistence. Export monthly: Safari can clear this library after a week without a visit.")) }, "Ask browser to keep my data"),
       ),
-      sizeRow,
+      storageLine,
       h("p", { class: "action-feedback", "data-testid": "settings-feedback" }, state.lastAction ?? ""),
     ),
     h(

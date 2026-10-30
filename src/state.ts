@@ -2,7 +2,7 @@ import * as db from "./db.ts";
 import { parseBookmarksHtml, type ParsedBookmark } from "./bookmarks.ts";
 import { buildDeck, dateKeyOf } from "./resurfacer.ts";
 import { DEFAULT_SETTINGS, type DeckRecord, type SalvageEvent, type SalvageLink, type Settings } from "./model.ts";
-import { allowedDeckFor, DEFAULT_TRIAL_DAYS, ensureTrialStarted, getEntitlement, type Entitlement } from "./trial.ts";
+import { allowedDeckFor, DEFAULT_TRIAL_DAYS, ensureTrialStarted, FREE_DECK_SIZE, getEntitlement, type Entitlement } from "./trial.ts";
 import { recomputeStreak } from "./stats.ts";
 import { fromJson } from "./exporters.ts";
 import { canonicalUrl, dedupeKey, domainOf, isHttpish, titleFromUrl } from "./normalize.ts";
@@ -44,6 +44,7 @@ export interface Store {
   lastAction: string | null;
   libraryVersion: number;
   externalChangeAt: number | null;
+  storage: { usage: number; quota: number; persisted: boolean; error: string | null } | null;
 }
 
 const listeners = new Set<(s: Store) => void>();
@@ -68,6 +69,7 @@ export const state: Store = {
   lastAction: null,
   libraryVersion: 0,
   externalChangeAt: null,
+  storage: null,
 };
 
 export function subscribe(fn: (s: Store) => void): () => void {
@@ -149,21 +151,47 @@ function dbHashId(key: string): string {
   return (h >>> 0).toString(36);
 }
 
+/**
+ * The one place rows come off disk into memory: every path (boot and cross-tab reload)
+ * has to pass through sanitisation, and an id collision keeps both links instead of
+ * silently hiding one.
+ */
+async function loadLibrary(): Promise<{ links: Map<string, SalvageLink>; repaired: number; dropped: number }> {
+  const now = Date.now();
+  const clean = new Map<string, SalvageLink>();
+  let repaired = 0;
+  let dropped = 0;
+  for (const row of await db.allLinks()) {
+    let ok = sanitizeLink(row, now);
+    if (!ok) {
+      dropped++;
+      continue;
+    }
+    if (clean.has(ok.id)) {
+      const base = ok.id;
+      let n = 1;
+      while (n < 1000 && clean.has(`${base}~${n}`)) n++;
+      ok = { ...ok, id: `${base}~${n}` };
+      repaired++;
+      await db.putLink(ok);
+    }
+    clean.set(ok.id, ok);
+  }
+  return { links: clean, repaired, dropped };
+}
+
 export async function boot(): Promise<void> {
   try {
     state.settings = normaliseSettings(await db.getSettings({ ...DEFAULT_SETTINGS }));
     const now = Date.now();
-    const [links, events] = await Promise.all([db.allLinks(), db.allEvents()]);
-    const clean = new Map<string, SalvageLink>();
-    for (const l of links) {
-      const ok = sanitizeLink(l, now);
-      if (ok && !clean.has(ok.id)) clean.set(ok.id, ok);
-    }
-    state.links = clean;
+    const [loaded, events] = await Promise.all([loadLibrary(), db.allEvents()]);
+    state.links = loaded.links;
     state.events = events.filter((e) => e && typeof e.ts === "number").sort((a, b) => a.ts - b.ts);
     state.error = null;
     state.now = now;
     state.entitlement = getEntitlement(state.settings, now);
+    if (loaded.repaired) state.lastAction = `Repaired ${loaded.repaired} link id collision${loaded.repaired === 1 ? "" : "s"} so nothing is hidden.`;
+    if (loaded.dropped) state.lastAction = `Skipped ${loaded.dropped} unreadable record${loaded.dropped === 1 ? "" : "s"} from local storage.`;
     bumpLibrary();
     await refreshStreak();
     await ensureDeck();
@@ -202,6 +230,16 @@ async function ensureDeck(): Promise<void> {
   const cut = allowedDeckSize();
   const existing = await db.getDeck(today);
   if (existing) {
+    // A cut made while Pro was active must not keep out-sizing the plan after it lapses.
+    if (existing.linkIds.length > cut) {
+      const ids = existing.linkIds.slice(0, cut);
+      const trimmed: DeckRecord = { ...existing, linkIds: ids, reasons: Object.fromEntries(ids.map((id) => [id, existing.reasons[id] ?? ""])) };
+      await db.putDeck(trimmed);
+      state.deck = trimmed;
+      state.deckIndex = 0;
+      state.lastAction = `Free plan deals at most ${FREE_DECK_SIZE} cards a day, so today's deck was trimmed from ${existing.linkIds.length} to ${cut}. Your library is untouched.`;
+      return;
+    }
     const live = existing.linkIds.filter((id) => state.links.get(id)?.status === "pile");
     if (live.length || !candidates().length) {
       state.deck = existing;
@@ -261,13 +299,13 @@ let syncListenerInstalled = false;
 function startCrossTabSync(): void {
   if (syncListenerInstalled) return;
   syncListenerInstalled = true;
-  window.addEventListener("storage", (e) => {
+      window.addEventListener("storage", (e) => {
     if (e.key !== SYNC_KEY) return;
     void (async () => {
       try {
         const now = Date.now();
-        const [links, events] = await Promise.all([db.allLinks(), db.allEvents()]);
-        state.links = new Map(links.map((l) => [l.id, l]));
+        const [loaded, events] = await Promise.all([loadLibrary(), db.allEvents()]);
+        state.links = loaded.links;
         state.events = events.sort((a, b) => a.ts - b.ts);
         state.settings = normaliseSettings(await db.getSettings(state.settings));
         state.externalChangeAt = now;
@@ -281,6 +319,7 @@ function startCrossTabSync(): void {
       }
     })();
   });
+
 }
 
 async function logEvent(ev: Omit<SalvageEvent, "id">): Promise<void> {
@@ -309,6 +348,9 @@ async function patch(id: string, changes: Partial<SalvageLink>, recordUndo?: str
   bumpLibrary();
   try {
     await db.putLink(after);
+    // A successful write retires the storage warning; otherwise one hiccup haunts the user
+    // until the next reload.
+    state.error = null;
     return true;
   } catch (e) {
     state.links.set(id, before);
@@ -361,15 +403,21 @@ export function canUndo(): boolean {
   return state.undoStack.length > 0;
 }
 
-export async function triage(kind: "open" | "keep" | "snooze" | "toss"): Promise<void> {
+/**
+ * `openedWindow` must be the tab the caller already opened inside the click/keydown handler:
+ * opening after the IndexedDB write resolves lets popup blockers swallow it silently.
+ */
+export async function triage(kind: "open" | "keep" | "snooze" | "toss", openedWindow?: Window | null): Promise<void> {
   const card = currentCard();
   if (!card) return;
   const now = Date.now();
   state.now = now;
   let ok = false;
   if (kind === "open") {
+    const win = openedWindow === undefined ? window.open(card.url, "_blank", "noopener,noreferrer") : openedWindow;
     ok = await patch(card.id, { openCount: card.openCount + 1, lastOpenedAt: now, status: "queued" }, `opened “${short(card.title)}”`);
     if (ok) await logEvent({ ts: now, type: "open", linkId: card.id });
+    if (!win) state.lastAction = "Your browser blocked the new tab — the address is shown under the title.";
   } else if (kind === "keep") {
     ok = await patch(card.id, { status: "queued", kept: true }, `kept “${short(card.title)}”`);
     if (ok) await logEvent({ ts: now, type: "keep", linkId: card.id });
@@ -390,7 +438,6 @@ export async function triage(kind: "open" | "keep" | "snooze" | "toss"): Promise
   await refreshStreak();
   pingOtherTabs();
   emit();
-  if (kind === "open") window.open(card.url, "_blank", "noopener,noreferrer");
 }
 
 function short(t: string): string {
@@ -457,8 +504,21 @@ export async function setNote(id: string, note: string): Promise<void> {
   emit();
 }
 
+/** The cap is about links you are still carrying, so tossed rows do not eat into it. */
+function activeLibraryCount(): number {
+  let n = 0;
+  for (const l of state.links.values()) if (l.status !== "tossed") n++;
+  return n;
+}
+
 function freeHeadroom(): number {
-  return state.entitlement.proActive || state.entitlement.linkLimit === null ? Infinity : Math.max(0, state.entitlement.linkLimit - state.links.size);
+  return state.entitlement.proActive || state.entitlement.linkLimit === null
+    ? Infinity
+    : Math.max(0, state.entitlement.linkLimit - activeLibraryCount());
+}
+
+export function libraryCounts(): { total: number; active: number } {
+  return { total: state.links.size, active: activeLibraryCount() };
 }
 
 /** Hash ids are 36-bit: with 10k links a collision is likely enough to handle, not assume away. */
@@ -478,7 +538,7 @@ async function ingest(items: ParsedBookmark[], source: string, restore?: Map<str
   const fresh: SalvageLink[] = [];
   for (const item of items) {
     const url = canonicalUrl(item.url);
-    const link = sanitizeLink({ url, title: item.title, folder: item.folder, addDate: item.addDate, tags: item.tags, importedAt: now }, now);
+    const link = sanitizeLink({ url, title: item.title, folder: item.folder, addDate: item.addDate, tags: item.tags, note: item.note, importedAt: now }, now);
     if (!link) {
       invalid++;
       continue;
@@ -524,7 +584,7 @@ export const importBookmarksHtml = (text: string, source = "bookmarks.html") => 
 
 export async function importUrlList(text: string): Promise<ImportResult> {
   const urls = text.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
-  return serial(() => ingest(urls.map((url) => ({ url, title: "", folder: "Pasted", addDate: null, tags: [] })), "pasted links"));
+  return serial(() => ingest(urls.map((url) => ({ url, title: "", folder: "Pasted", addDate: null, tags: [], note: "" })), "pasted links"));
 }
 
 /** A restored export is still an import: validated, capped, and merged into what is already here. */
@@ -551,7 +611,7 @@ export function importSnapshot(json: string): Promise<ImportResult> {
       if (saved.lastOpenedAt && saved.lastOpenedAt > (mine.lastOpenedAt ?? 0)) diff.lastOpenedAt = saved.lastOpenedAt;
       if (Object.keys(diff).length) restore.set(mine.id, diff);
     }
-    const items: ParsedBookmark[] = clean.map((l) => ({ url: l.url, title: l.title, folder: l.folder, addDate: l.addDate, tags: l.tags }));
+    const items: ParsedBookmark[] = clean.map((l) => ({ url: l.url, title: l.title, folder: l.folder, addDate: l.addDate, tags: l.tags, note: l.note }));
     const result = await ingest(items, "salvage json", restore);
     return { ...result, invalid: result.invalid + invalid };
   });
@@ -609,6 +669,16 @@ export async function saveDeckSettings(deckSize: number, snoozeDays: number): Pr
 
 export function setRoute(route: Route): void {
   state.route = route;
+  emit();
+  if (route === "settings") void refreshStorageEstimate();
+}
+
+/**
+ * Lives in state rather than in a captured DOM node: an async write into a node from a
+ * previous render lands on a detached element and the line never updates.
+ */
+export async function refreshStorageEstimate(): Promise<void> {
+  state.storage = await db.estimate();
   emit();
 }
 

@@ -12,10 +12,16 @@
     "serve:subpath": "node scripts/serve-subpath.mjs",
     "test": "vitest run",
     "e2e": "playwright test",
-    "check": "npm run test && npm run build && npm run e2e"
+    "check": "npm run test && npm run build && npm run e2e",
+    "audit": "node scripts/verify.mjs",
+    "lighthouse": "node scripts/audit.mjs",
+    "curate": "node scripts/curate-sample.mjs",
+    "checksample": "node scripts/check-sample.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.64.1",
+    "js-yaml": "^5.5.0",
     "lighthouse": "^13.5.0",
     "typescript": "^5.9.3",
     "vite": "^8.3.5",

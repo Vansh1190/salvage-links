@@ -46,9 +46,11 @@ document.addEventListener("keydown", (e) => {
   if (state.route !== "deck") return;
   const map: Record<string, "open" | "keep" | "snooze" | "toss"> = { o: "open", k: "keep", s: "snooze", x: "toss" };
   if (map[k]) {
-    if (!currentCard()) return;
+    const card = currentCard();
+    if (!card) return;
     e.preventDefault();
-    void triage(map[k]).then(() => announce(announceForDeck()));
+    const opened = map[k] === "open" ? window.open(card.url, "_blank", "noopener,noreferrer") : null;
+    void triage(map[k], opened).then(() => announce(announceForDeck()));
     return;
   }
   if (k === "u") {

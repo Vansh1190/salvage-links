@@ -1,4 +1,3 @@
-const TRAILING_SLASH_HOSTS = new Set(["", "index.php"]);
 /**
  * Only unambiguous analytics parameters are removed. Fragments are KEPT: for GitHub
  * PR diffs, Google Maps and most single-page apps the fragment is the address, and
@@ -21,12 +20,10 @@ export function canonicalUrl(raw: string): string {
   if (u.protocol === "javascript:" || u.protocol === "data:" || u.protocol === "blob:") return trimmed;
   u.hostname = u.hostname.toLowerCase().replace(/^www\./, "");
   u.protocol = u.protocol.toLowerCase();
-  if (u.pathname === "/") u.pathname = "/";
-  else u.pathname = u.pathname.replace(/\/{2,}/g, "/").replace(/\/$/, "") || "/";
+  if (u.pathname !== "/") u.pathname = u.pathname.replace(/\/{2,}/g, "/").replace(/\/$/, "") || "/";
   for (const k of [...u.searchParams.keys()]) if (TRACKING_PARAMS.test(k)) u.searchParams.delete(k);
   if (u.port === "443" && u.protocol === "https:") u.port = "";
   if (u.port === "80" && u.protocol === "http:") u.port = "";
-  if (TRAILING_SLASH_HOSTS.has(u.pathname.slice(1))) return u.toString();
   return u.toString();
 }
 

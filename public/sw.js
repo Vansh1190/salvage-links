@@ -65,6 +65,3 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-self.addEventListener("message", (event) => {
-  if (event.data === "skip-waiting") self.skipWaiting();
-});

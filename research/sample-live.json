@@ -1,0 +1,729 @@
+{
+  "checkedAt": "2026-10-27",
+  "tool": "scripts/curate-sample.mjs",
+  "candidates": 180,
+  "live": 136,
+  "byHost": {
+    "developer.mozilla.org": 10,
+    "getpocket.com": 4,
+    "www.reddit.com": 20,
+    "survey.stackoverflow.co": 4,
+    "github.com": 47,
+    "raw.githubusercontent.com": 1,
+    "blog.bytebytego.com": 1,
+    "support.apple.com": 1,
+    "corsproxy.io": 2,
+    "dev.to": 3,
+    "api.npmjs.org": 1,
+    "brennenputh.me": 1,
+    "shittyscreenshare.com": 1,
+    "support.mozilla.org": 1,
+    "overreacted.io": 2,
+    "hashnode.com": 1,
+    "allorigins.win": 1,
+    "doublememory.com": 1,
+    "www.joelonsoftware.com": 1,
+    "docs.github.com": 3,
+    "youtu.be": 1,
+    "2024.stateofjs.com": 2,
+    "x.com": 2,
+    "www.smashingmagazine.com": 2,
+    "news.ycombinator.com": 4,
+    "maurycyz.com": 1,
+    "javascriptweekly.com": 1,
+    "2024.stateofcss.com": 1,
+    "web.dev": 2,
+    "meta.discourse.org": 1,
+    "discuss.python.org": 4,
+    "omnivore.app": 1,
+    "webkit.org": 1,
+    "css-tricks.com": 2,
+    "developer.chrome.com": 1,
+    "internals.rust-lang.org": 1,
+    "lobste.rs": 1,
+    "codeandcake.dev": 1,
+    "ziggit.dev": 1
+  },
+  "urls": [
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API/Using_the_Notifications_API",
+      "host": "developer.mozilla.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/PeriodicSyncManager",
+      "host": "developer.mozilla.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://getpocket.com/home",
+      "host": "getpocket.com",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS",
+      "host": "developer.mozilla.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter",
+      "host": "developer.mozilla.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist",
+      "host": "developer.mozilla.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/Notification",
+      "host": "developer.mozilla.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1x8bqrp/if_ai_fatigue_has_hit_you_i_have_a_question/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Collator",
+      "host": "developer.mozilla.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1x89u0m/why_do_300_clients_demand_10x_more_than_3000/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria",
+      "host": "developer.mozilla.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/LocalLLaMA/comments/1xdh57e/vibecoding_your_own_inference_engine_is_easy_they/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1xc3poo/railway_hacked_envs_leaked/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1xavzcl/how_to_configure_robotstxt_for_modern_crawlers/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1xg35l4/after_years_of_living_in_legacy_hell_we_finally/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1wz8has/what_is_your_most_used_hack_on_daytoday_websites/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1wstisb/are_big_companies_just_not_interested_in_web/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1wyp7zs/have_modern_websites_become_bad_in_performance_my/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1x6lz7z/i_signed_up_for_a_saas_product_yesterday_because/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1xccokx/what_is_a_tool_shortcut_or_feature_you_discovered/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1x1pewj/we_read_one_ap_news_story_and_our_browser_ended/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1x4m79m/are_56_round_interviews_the_normal_now/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/LocalLLaMA/comments/1wt5f4e/looks_like_the_era_of_subsidised_compute_is/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1xbsssb/railway_hosting_is_deeply_unreliable/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/LocalLLaMA/comments/1xg78oq/i_now_have_definitive_proofs_that_my_qwen_flash/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/LocalLLaMA/comments/1x3gpyi/every_model_that_can_be_run_on_1016gb_vram_ranked/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://survey.stackoverflow.co/2025/",
+      "host": "survey.stackoverflow.co",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/LocalLLaMA/comments/1ws67x4/gpt3_is_discontinued_today/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/URL",
+      "host": "developer.mozilla.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://github.com/",
+      "host": "github.com",
+      "from": "REVIEW-CODE.md"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/chromium/chromium/main/chrome/browser/bookmarks/bookmark_html_writer.cc",
+      "host": "raw.githubusercontent.com",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/LocalLLaMA/comments/1xd7ptj/models_disappearing_from_huggingface/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://blog.bytebytego.com/",
+      "host": "blog.bytebytego.com",
+      "from": "web.md"
+    },
+    {
+      "url": "https://support.apple.com/guide/safari/welcome/mac",
+      "host": "support.apple.com",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://corsproxy.io/?key=YOUR_API_KEY&url=",
+      "host": "corsproxy.io",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://dev.to/francistrdev/ai-fatigue-yea-i-know-f9",
+      "host": "dev.to",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://dev.to/adamthedeveloper/dont-be-a-proxy-between-me-and-your-ai-mcn",
+      "host": "dev.to",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://api.npmjs.org/downloads/point/last-week/",
+      "host": "api.npmjs.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://corsproxy.io/",
+      "host": "corsproxy.io",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://www.reddit.com/r/webdev/comments/1x9tnsf/laid_off_after_7_years_and_my_portfolio_is_a_2019/",
+      "host": "www.reddit.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://brennenputh.me/blog/printable-websites/",
+      "host": "brennenputh.me",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://shittyscreenshare.com/",
+      "host": "shittyscreenshare.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://support.mozilla.org/en-US/kb/future-of-pocket",
+      "host": "support.mozilla.org",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://getpocket.com/home",
+      "host": "getpocket.com",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/estimate",
+      "host": "developer.mozilla.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://overreacted.io/npm-audit-broken-by-design/",
+      "host": "overreacted.io",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://dev.to/pahorton/i-got-tired-of-coming-into-my-lab-to-check-the-pressure-of-my-cryocooler-so-i-built-a-tool-to-do-it-4ob7",
+      "host": "dev.to",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://hashnode.com/",
+      "host": "hashnode.com",
+      "from": "web.md"
+    },
+    {
+      "url": "https://allorigins.win/",
+      "host": "allorigins.win",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://doublememory.com/",
+      "host": "doublememory.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://www.joelonsoftware.com/2000/04/06/things-you-should-never-do-part-i/",
+      "host": "www.joelonsoftware.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://overreacted.io/the-wet-codebase/",
+      "host": "overreacted.io",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://docs.github.com/en/rest/search/search",
+      "host": "docs.github.com",
+      "from": "github.md"
+    },
+    {
+      "url": "https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits",
+      "host": "docs.github.com",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://www.youtube.com/watch?t=30&v=VIDEO&feature=youtu.be",
+      "host": "youtu.be",
+      "from": "REVIEW-CODE.md"
+    },
+    {
+      "url": "https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages",
+      "host": "docs.github.com",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://2024.stateofjs.com/en-US/libraries/testing/",
+      "host": "2024.stateofjs.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://x.com/p",
+      "host": "x.com",
+      "from": "REVIEW-CODE.md"
+    },
+    {
+      "url": "https://www.smashingmagazine.com/2026/04/session-timeouts-accessibility-barrier-authentication-design/",
+      "host": "www.smashingmagazine.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://x.com/p?referrer=twitter",
+      "host": "x.com",
+      "from": "REVIEW-CODE.md"
+    },
+    {
+      "url": "https://survey.stackoverflow.co/2026",
+      "host": "survey.stackoverflow.co",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://news.ycombinator.com/item?id=34225669",
+      "host": "news.ycombinator.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://maurycyz.com/misc/real_links/",
+      "host": "maurycyz.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://2024.stateofjs.com/en-US/usage/",
+      "host": "2024.stateofjs.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://survey.stackoverflow.co/2025/ai",
+      "host": "survey.stackoverflow.co",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://javascriptweekly.com/issues/808",
+      "host": "javascriptweekly.com",
+      "from": "web.md"
+    },
+    {
+      "url": "https://github.com/OpenCut-app/OpenCut/issues/333",
+      "host": "github.com",
+      "from": "github.md"
+    },
+    {
+      "url": "https://2024.stateofcss.com/en-US/usage/",
+      "host": "2024.stateofcss.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://survey.stackoverflow.co/2025/stack-overflow",
+      "host": "survey.stackoverflow.co",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/wallabag/wallabag/issues/3972",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://web.dev/articles/persistent-storage",
+      "host": "web.dev",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://github.com/linkwarden/linkwarden/issues/949",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://web.dev/articles/storage-for-the-web",
+      "host": "web.dev",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://getpocket.com/home",
+      "host": "getpocket.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://news.ycombinator.com/item?id=46345827",
+      "host": "news.ycombinator.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://www.smashingmagazine.com/category/usability/",
+      "host": "www.smashingmagazine.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://meta.discourse.org/raw/414256",
+      "host": "meta.discourse.org",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://discuss.python.org/t/add-list-discard-and-deque-discard/104330",
+      "host": "discuss.python.org",
+      "from": "web.md"
+    },
+    {
+      "url": "https://omnivore.app/",
+      "host": "omnivore.app",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://discuss.python.org/t/pep-851-add-list-discard/109701",
+      "host": "discuss.python.org",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://getpocket.com/home",
+      "host": "getpocket.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576",
+      "host": "discuss.python.org",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/omnivore-app/omnivore/issues/2881",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/omnivore-app/omnivore/issues/2696",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://discuss.python.org/raw/106998",
+      "host": "discuss.python.org",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/karakeep-app/karakeep/issues/435",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/wallabag/wallabag/issues/2285",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/miniflux/v2/issues/2165",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/wallabag/wallabag/issues/6847",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/linkwarden/linkwarden/issues/499",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://news.ycombinator.com/item?id=30764757",
+      "host": "news.ycombinator.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/karakeep-app/karakeep/issues/712",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://news.ycombinator.com/item?id=32505314",
+      "host": "news.ycombinator.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/miniflux/v2/issues/780",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/linkwarden/linkwarden/issues/286",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://webkit.org/blog/14403/updates-to-storage-policy/",
+      "host": "webkit.org",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://github.com/karakeep-app/karakeep/issues/705",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/miniflux/v2/issues/1493",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/linkwarden/linkwarden/issues/99",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/zed-industries/zed/issues/14172",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/isaacs/github/issues/224",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/karakeep-app/karakeep/issues/295",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://css-tricks.com/",
+      "host": "css-tricks.com",
+      "from": "web.md"
+    },
+    {
+      "url": "https://github.com/karakeep-app/karakeep/issues/536",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/omnivore-app/omnivore/issues/4461",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/helix-editor/helix/issues/5132",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://css-tricks.com/blocked-aria-hidden-fix/",
+      "host": "css-tricks.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/karakeep-app/karakeep/issues/2401",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/zed-industries/zed/issues/58974",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/microsoft/azure-container-apps/issues/1109",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/karakeep-app/karakeep/issues/1077",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/karakeep-app/karakeep/issues/538",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/linkwarden/linkwarden/issues/587",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/omnivore-app/omnivore/issues/4462",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/hashicorp/next-mdx-remote/issues/403",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/miniflux/v2/issues/797",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/omnivore-app/omnivore/issues/4459",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/nuxt/nuxt/issues/15462",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/karakeep-app/karakeep/issues/333",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/wallabag/wallabag/issues/3118",
+      "host": "github.com",
+      "from": "pocket-evidence.md"
+    },
+    {
+      "url": "https://github.com/Rob--W/cors-anywhere/issues/301",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/react/create-react-app/issues/5316",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/home-assistant/core/issues/147122",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/prisma/orm/issues/5051",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/aws/aws-cdk/issues/21181",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://developer.chrome.com/docs/capabilities/periodic-background-sync?hl=zh-cn",
+      "host": "developer.chrome.com",
+      "from": "FEASIBILITY.md"
+    },
+    {
+      "url": "https://github.com/vitejs/vite/issues/2830",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/npm/cli/issues/8059",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/jqlang/jq/issues/467",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/w3c/wcag3/issues/192",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://github.com/nodejs/corepack/issues/95",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://internals.rust-lang.org/t/quick-rust-improvement-ideas-language-std-community-brainstorm/24617",
+      "host": "internals.rust-lang.org",
+      "from": "web.md"
+    },
+    {
+      "url": "https://github.com/microsoft/vscode/issues/15909",
+      "host": "github.com",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://lobste.rs/top/1w",
+      "host": "lobste.rs",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://codeandcake.dev/posts/2026-10-22-docker-is-weird",
+      "host": "codeandcake.dev",
+      "from": "CLUSTERS.md"
+    },
+    {
+      "url": "https://ziggit.dev/raw/17770",
+      "host": "ziggit.dev",
+      "from": "web.md"
+    }
+  ]
+}

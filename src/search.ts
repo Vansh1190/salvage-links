@@ -72,12 +72,3 @@ export function search(index: SearchIndex, query: string, limit = 50): { id: str
     .map(([id, score]) => ({ id, score: Math.round(score * 1000) / 1000 }));
 }
 
-export function highlight(text: string, query: string, max = 120): string {
-  const terms = [...new Set(words(query))].filter((t) => t.length > 1);
-  if (!terms.length) return text.slice(0, max);
-  const lower = text.toLowerCase();
-  const idx = terms.map((t) => lower.indexOf(t)).filter((i) => i >= 0).sort((a, b) => a - b)[0];
-  if (idx === undefined) return text.slice(0, max);
-  const start = Math.max(0, idx - 40);
-  return (start > 0 ? "…" : "") + text.slice(start, start + max);
-}
